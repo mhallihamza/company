@@ -1,0 +1,34 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: ai-business-hq-backend:latest
+    container_name: hq-backend
+    ports:
+      - "8700:8700"
+    env_file:
+      - .env
+    volumes:
+      - ./storage:/app/storage
+      - ./data:/app/data
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8700}
+    image: ai-business-hq-frontend:latest
+    container_name: hq-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # اختياري — Redis لاحقاً لعامل/طابور حقيقي (Phase التالية)
+  # redis:
+  #   image: redis:7-alpine
+  #   ports: ["6379:6379"]

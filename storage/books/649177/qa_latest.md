@@ -1,0 +1,14 @@
+- ✅ story.json exists — C:\Users\PC\Desktop\kidbook_agent (2)\kidbook_agent\storage\books\ق_ص_ة_سلحفاة_تعشق_الرسم_649177\story.json
+- ✅ story.json is valid JSON
+- ✅ required field title
+- ✅ required field character_sheet
+- ✅ required field style
+- ✅ required field pages
+- ✅ required field etsy
+- ✅ page count = 12 — actual 12
+- ✅ every page has text + prompt
+- ✅ book.pdf present and valid — C:\Users\PC\Desktop\kidbook_agent (2)\kidbook_agent\storage\books\ق_ص_ة_سلحفاة_تعشق_الرسم_649177\book.pdf
+- ✅ page images = 12 — actual 12
+- ✅ Etsy title ≤ 140 chars — len 42
+- ✅ Etsy tags ≤ 13 — actual 3
+- ✅ Amiri Arabic font present — C:\Users\PC\Desktop\kidbook_agent (2)\kidbook_agent\fonts\Amiri-Regular.ttf

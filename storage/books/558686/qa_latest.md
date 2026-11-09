@@ -1,0 +1,14 @@
+- ✅ ملف story.json موجود — C:\Users\PC\Desktop\kidbook_agent (2)\kidbook_agent\backend\storage\books\ق_ص_ة_سلحفاة_تعشق_الرسم_558686\story.json
+- ✅ story.json صالح
+- ✅ الحقل title
+- ✅ الحقل character_sheet
+- ✅ الحقل style
+- ✅ الحقل pages
+- ✅ الحقل etsy
+- ✅ عدد الصفحات = 12 — الحالي 12
+- ✅ كل صفحة بها نص ووصف رسم
+- ✅ book.pdf موجود وسليم — C:\Users\PC\Desktop\kidbook_agent (2)\kidbook_agent\backend\storage\books\ق_ص_ة_سلحفاة_تعشق_الرسم_558686\book.pdf
+- ✅ صور الصفحات = 12 — الحالي 12
+- ✅ عنوان Etsy ≤ 140 — الطول 42
+- ✅ وسوم Etsy ≤ 13 — الحالي 3
+- ✅ خط Amiri العربي متوفر — C:\Users\PC\Desktop\kidbook_agent (2)\kidbook_agent\fonts\Amiri-Regular.ttf

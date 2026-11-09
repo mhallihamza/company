@@ -1,0 +1,35 @@
+# ===== اسرار ومفاتيح =====
+.env
+.env.*
+!.env.example
+
+# ===== بيانات محلية / مولدة =====
+*.db
+*.sqlite
+*.sqlite3
+data/
+archive/data/
+storage/books/
+storage/reports/
+
+# ===== Python =====
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ===== Node / Next.js =====
+node_modules/
+.next/
+frontend/.next/
+out/
+
+# ===== logs =====
+*.log
+
+# ===== OS =====
+Thumbs.db
+.DS_Store

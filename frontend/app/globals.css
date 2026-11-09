@@ -1,0 +1,105 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #0d1520;
+  --bg-soft: #101c2b;
+  --card: rgba(255, 255, 255, 0.035);
+  --card-2: rgba(255, 255, 255, 0.06);
+  --line: rgba(255, 255, 255, 0.09);
+  --gold: #f2c66d;
+  --gold-deep: #d9a648;
+  --teal: #34d3be;
+  --text: #e9edf4;
+  --muted: #93a0b5;
+  --ok: #34d399;
+  --err: #fb7185;
+  --warn: #fbbf24;
+}
+
+* { box-sizing: border-box; }
+html { background: var(--bg); }
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(900px 500px at 85% -10%, rgba(242, 198, 109, 0.10), transparent 60%),
+    radial-gradient(700px 500px at -10% 30%, rgba(52, 211, 190, 0.08), transparent 55%),
+    var(--bg);
+  color: var(--text);
+  font-family: "Noto Kufi Arabic", "Noto Naskh Arabic", system-ui, -apple-system,
+               "Segoe UI", Tahoma, Arial, sans-serif;
+  line-height: 1.75;
+}
+
+::selection { background: rgba(242, 198, 109, 0.3); }
+
+/* ============ عناصر قابلة لإعادة الاستعمال ============ */
+.card {
+  background: linear-gradient(180deg, var(--card-2), var(--card));
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 20px;
+}
+.card:hover { border-color: rgba(242, 198, 109, 0.28); }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  border: none; cursor: pointer; border-radius: 12px;
+  font-family: inherit; font-weight: 600; font-size: 0.95rem;
+  padding: 10px 18px; transition: all 0.18s ease;
+}
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-gold {
+  background: linear-gradient(180deg, #f6d486, var(--gold-deep));
+  color: #231b08;
+  box-shadow: 0 6px 18px rgba(217, 166, 72, 0.25);
+}
+.btn-gold:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.06); }
+.btn-ghost {
+  background: rgba(255,255,255,0.05); color: var(--text);
+  border: 1px solid var(--line);
+}
+.btn-ghost:hover:not(:disabled) { background: rgba(255,255,255,0.09); }
+.btn-green { background: linear-gradient(180deg, #46e0a6, #0ea872); color: #052e1e; }
+.btn-red { background: linear-gradient(180deg, #fb8ba0, #e11d48); color: #3a0514; }
+.btn-sm { padding: 6px 12px; font-size: 0.82rem; border-radius: 10px; }
+
+.input, .textarea, select.input {
+  width: 100%; background: rgba(9, 15, 23, 0.7); color: var(--text);
+  border: 1px solid var(--line); border-radius: 12px; padding: 11px 14px;
+  font-family: inherit; font-size: 0.95rem; outline: none;
+}
+.input:focus, .textarea:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(242,198,109,0.15); }
+
+.badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  border-radius: 999px; padding: 3px 12px; font-size: 0.78rem;
+  border: 1px solid var(--line); color: var(--muted);
+}
+.badge-ok { color: var(--ok); border-color: rgba(52, 211, 153, 0.35); background: rgba(52,211,153,0.08); }
+.badge-err { color: var(--err); border-color: rgba(251, 113, 133, 0.35); background: rgba(251,113,133,0.08); }
+.badge-warn { color: var(--warn); border-color: rgba(251, 191, 36, 0.35); background: rgba(251,191,36,0.08); }
+.badge-gold { color: var(--gold); border-color: rgba(242,198,109,0.4); background: rgba(242,198,109,0.08); }
+.badge-teal { color: var(--teal); border-color: rgba(52,211,190,0.35); background: rgba(52,211,190,0.08); }
+
+.metric { font-size: 2.1rem; font-weight: 800; letter-spacing: -0.5px; line-height: 1.1; }
+.muted { color: var(--muted); }
+
+.nav-link {
+  display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+  border-radius: 12px; color: var(--muted); text-decoration: none;
+  font-size: 0.92rem; border: 1px solid transparent; transition: all .15s ease;
+}
+.nav-link:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+.nav-link.active {
+  color: var(--gold); background: rgba(242,198,109,0.09);
+  border-color: rgba(242,198,109,0.35);
+}
+
+.hairline { border: none; border-top: 1px solid var(--line); margin: 14px 0; }
+.scrollbar-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 8px; }
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.fade-in { animation: fadeIn .35s ease both; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
