@@ -65,6 +65,16 @@ export type Book = {
   cover_path?: string | null; final_file?: string | null;
   created_at?: string; updated_at?: string; product_id?: number;
 };
+export type MarketProfile = {
+  profile_id: number; country: string; language: string; currency: string;
+  dir: "ltr" | "rtl" | string; font?: string; seeds?: string; seasonal?: string;
+  enabled: boolean; created_at?: string;
+  fee_model_ref?: string; story_prompt_ref?: string; font_ref?: string;
+  text_direction?: "ltr" | "rtl" | string;
+  seasonal_calendar?: string; qa_ruleset_ref?: string;
+  fee_verified?: boolean; fee_currency?: string | null;
+};
+
 export type Opportunity = {
   opportunity_id: number; sector: string; title: string; niche?: string;
   score?: number; status: string; payload?: string; created_at?: string;
@@ -167,6 +177,13 @@ export const api = {
     const q = p.toString();
     return req<Opportunity[]>(`/api/opportunities${q ? `?${q}` : ""}`);
   },
+  profiles: () => req<MarketProfile[]>("/api/profiles"),
+  createProfile: (body: Omit<MarketProfile, "profile_id" | "created_at">) =>
+    req<{ ok: boolean; profile_id: number }>("/api/profiles", {
+      method: "POST", body: JSON.stringify(body),
+    }),
+  toggleProfile: (id: number) =>
+    req<{ ok: boolean }>(`/api/profiles/${id}/toggle`, { method: "PATCH" }),
   setOpportunityStatus: (id: number, status: string) =>
     req<{ ok: boolean }>(`/api/opportunities/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
   approvals: (status = "") =>

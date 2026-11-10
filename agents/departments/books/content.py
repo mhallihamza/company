@@ -10,6 +10,8 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from agents.common import HQState, ask_supervisor
 from agents.capabilities import content as content_tools
 from agents.capabilities import media, pdf
+from agents.profiles import pick_profile
+from agents.localization import get_language_profile, font_path_for
 from backend.app.config import ARABIC_FONT, BOOKS_DIR
 from backend.app.services import store as svc
 import unicodedata
@@ -67,7 +69,14 @@ def _pdf_builder(state: HQState) -> HQState:
         imgs = [str(p) for p in sorted(d.glob("p*.png"),
                                        key=lambda p: p.stem)]
         out = d / "book.pdf"
-        pdf.build_book_pdf(story, imgs, out)
+        try:
+            font_path = font_path_for(state.get("font_ref") or "font.amiri")
+        except FileNotFoundError:
+            font_path = ARABIC_FONT  # documented fallback — the only font we ship
+        pdf.build_book_pdf(story, imgs, out,
+                           font_path=font_path,
+                           language=str(state.get("language") or "ar").lower(),
+                           text_direction=str(state.get("text_direction") or "rtl"))
         svc.upsert_product(slug, story["title"], status="pdf", pdf_path=str(out),
                            cover_path=imgs[0] if imgs else None)
         return {"slug": slug, "pdf_path": str(out), "summary": f"Book built: {slug}",
@@ -116,10 +125,22 @@ def _graph():
 
 
 def run(task: str = "", task_id: int | None = None, workspace: str = "default",
-        idea: str | None = None, stop_after: str = "") -> dict:
+        idea: str | None = None, stop_after: str = "",
+        market: str | None = None) -> dict:
     try:
+        profile = pick_profile(market)
+        if profile is None:
+            known = "us-en, fr-fr, sa-ar" if not market else f"'{market}' not found or disabled"
+            return {"ok": False, "task_id": task_id,
+                    "error": f"no enabled market profile ({known}) — enable one at /profiles"}
+        language = str(profile.get("language") or "ar").lower()
+        lang = get_language_profile(language)   # fail fast — unsupported code → UnsupportedLanguage
         state: HQState = {"task": idea or task or "قصة أطفال", "idea": idea or task,
-                          "run_id": task_id, "progress": [], "stop_after": stop_after or ""}
+                          "run_id": task_id, "progress": [], "stop_after": stop_after or "",
+                          "language": language,
+                          "text_direction": lang.text_direction,
+                          "font_ref": lang.font_ref,
+                          "market": profile.get("label") or f"{profile.get('country')}-{language}".lower()}
         result = _graph().invoke(state, config={"recursion_limit": 12})
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "error": str(e), "task_id": task_id}

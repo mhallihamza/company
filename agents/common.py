@@ -23,6 +23,11 @@ class HQState(TypedDict, total=False):
     error: str
     run_id: int | None
     human_confirmed: bool
+    text_direction: str
+    font_ref: str
+    market: str
+    market_profile: dict
+    fee_source: str
 
 
 def regex_json(text: str) -> dict[str, Any]:

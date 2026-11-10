@@ -20,16 +20,13 @@ from agents.common import HQState
 from agents.llm import get_chat_model, llm_last_note
 from agents.capabilities import research
 from agents.capabilities.scoring import DEMAND_SCORE, COMPETITION_SCORE
-from agents.fees.etsy import total_fee
+from agents.fees.registry import unit_economics, UnknownFeeModel
+from agents.profiles import pick_profile
 from backend.app.config import REPORTS_DIR
 from backend.app.services import store as svc
 
 ALLOWED_LANGS = ("en", "ar", "fr")
 COUNTRIES = ("US", "SA", "AE", "FR")
-SEASONAL_SEEDS_EN = (
-    "Ramadan back-to-school Christmas Diwali Eid moon",
-    "Eid back to school summer reading homeschool Arabic",
-)
 
 
 # ---------- helpers ----------
@@ -65,14 +62,71 @@ def _is_demo_env() -> bool:
     return bool(os.getenv("KIDBOOK_FAKE_LLM", "")) or os.getenv("AIHQ_FAKE_LLM", "").lower() in ("1", "true", "yes")
 
 
+def _profile_dict(state: HQState) -> dict:
+    return state.get("market_profile") or {}
+
+
+def _profile_seeds(state: HQState) -> list[str]:
+    """Keyword seeds + seasonal event names from the selected market profile."""
+    p = _profile_dict(state)
+    seeds: list[str] = []
+    try:
+        raw = p.get("seeds")
+        seeds.extend(json.loads(raw) if isinstance(raw, str) else (raw or []))
+    except Exception:  # noqa: BLE001
+        seeds.extend([])
+    try:
+        cal = p.get("seasonal_calendar")
+        cal = json.loads(cal) if isinstance(cal, str) else (cal or [])
+        seeds.extend(str(ev.get("name", "")).replace("_", " ") for ev in cal if isinstance(ev, dict))
+    except Exception:  # noqa: BLE001
+        pass
+    return [s for s in seeds if s]
+
+
+def _fallback_candidates(profile: dict) -> list[dict]:
+    """Profile-aware static fallback — never invent scores, evidence step grounds these."""
+    lang = str(profile.get("language") or "en").lower()
+    country = str(profile.get("country") or "US").upper()
+    if lang == "ar":
+        return [
+            {"niche": "arabic_alphabet", "keyword": "أبجدية عربية", "language": "ar", "country": country,
+             "rationale": "Arabic alphabet workbook demand"},
+            {"niche": "bedtime_stories", "keyword": "قصص قبل النوم", "language": "ar", "country": country,
+             "rationale": "Arabic bedtime storybooks for young children"},
+            {"niche": "coloring_animals", "keyword": "تلوين حيوانات", "language": "ar", "country": country,
+             "rationale": "Low competition coloring niche"},
+        ]
+    if lang == "fr":
+        return [
+            {"niche": "rentrée_scolaire", "keyword": "cahier activités", "language": "fr", "country": country,
+             "rationale": "French back-to-school workbook demand"},
+            {"niche": "coloring_animals", "keyword": "coloriage animaux", "language": "fr", "country": country,
+             "rationale": "Low competition coloring niche"},
+            {"niche": "bedtime_stories", "keyword": "livre enfants histoire", "language": "fr", "country": country,
+             "rationale": "French picture book demand"},
+        ]
+    return [
+        {"niche": "back_to_school", "keyword": "activity book back to school", "language": "en", "country": country,
+         "rationale": "Back-to-school seasonal demand"},
+        {"niche": "coloring_animals", "keyword": "coloring book animals", "language": "en", "country": country,
+         "rationale": "Low competition coloring niche"},
+        {"niche": "educational_workbook", "keyword": "educational workbook", "language": "en", "country": country,
+         "rationale": "Evergreen educational workbook demand"},
+    ]
+
+
 # ---------- nodes ----------
 def _discover(state: HQState) -> HQState:
     try:
         brief = (state.get("task") or "scan niches").strip()
+        seeds = _profile_seeds(state)
+        market = state.get("market") or "us-en"
         model = get_chat_model(temperature=0.2, max_tokens=1200)
         sys = ("[ROLE:opportunity.discovery]\nReturn ONLY JSON {\"candidates\": [{\"niche\": str, \"keyword\": str, "
                "\"language\": str, \"country\": str, \"rationale\": str}]} — no numbers.\n"
-               f"SEASONAL_SEEDS: {' '.join(SEASONAL_SEEDS_EN)}\n"
+               f"MARKET: {market}\n"
+               f"MARKET_SEEDS: {' '.join(seeds) if seeds else 'none'}\n"
                f"BRIEF: {brief}\n")
         raw = str(model.invoke([SystemMessage(content=sys),
                                 HumanMessage(content="discover candidates")]).content)
@@ -84,32 +138,12 @@ def _discover(state: HQState) -> HQState:
                 parsed = json.loads(match.group(0))
             except Exception:  # noqa: BLE001
                 parsed = {}
-        # fall back to a static seed list — never invent scores (numbers come from evidence step)
-        candidates = [{
-            "niche": "back_to_school", "keyword": "activity book back to school",
-            "language": "en", "country": "US",
-            "rationale": "Back-to-school seasonal demand for KDP/Etsy"
-        }, {
-            "niche": "bedtime_stories", "keyword": "قصص قبل النوم",
-            "language": "ar", "country": "SA",
-            "rationale": "Arabic bedtime storybooks for young children"
-        }, {
-            "niche": "coloring_animals", "keyword": "coloring book animals",
-            "language": "en", "country": "US",
-            "rationale": "Low competition, proven demand for kids coloring books"
-        }, {
-            "niche": "arabic_alphabet", "keyword": "arabic alphabet learning",
-            "language": "ar", "country": "AE",
-            "rationale": "Arabic literacy workbook niche (high demand in UAE/SA)"
-        }, {
-            "niche": "educational_workbook", "keyword": "educational workbook",
-            "language": "en", "country": "US",
-            "rationale": "Educational workbook broad category with evergreen demand"
-        }]
+        candidates = _fallback_candidates(state.get("market_profile") or {})
         try:
             parsed_candidates = (parsed.get('candidates') if parsed else []) or []
             if parsed_candidates and isinstance(parsed_candidates, list):
-                candidates = parsed_candidates[:30]
+                candidates = [c for c in parsed_candidates[:30]
+                              if isinstance(c, dict) and c.get("niche")]
         except Exception:  # noqa: BLE001 — parser is best-effort
             pass
         return {"artifacts": {**state.get("artifacts", {}), "candidates": candidates},
@@ -162,9 +196,20 @@ def _score(state: HQState) -> HQState:
                     price_sample = float(price_sample)
                 except (TypeError, ValueError):
                     price_sample = None
+            profile = state.get("market_profile") or {}
+            fee_ref = str(profile.get("fee_model_ref") or "etsy.global").lower()
+            fee_source = "partial"
             if price_sample:
-                fee = total_fee(price_sample)["net_receipt"]
-                margin_score = _clamp((fee / max(price_sample, 0.01)) * 10, 0, 10)
+                try:
+                    ue = unit_economics(fee_ref, price_sample)
+                except UnknownFeeModel:
+                    ue = None
+                if ue and ue.get("verified") and ue.get("net_receipt") is not None:
+                    fee_source = "verified"
+                    margin_score = _clamp((ue["net_receipt"] / max(price_sample, 0.01)) * 10, 0, 10)
+                else:
+                    fee_source = "partial"
+                    margin_score = 5.0   # fees unverified for this market — never invent a margin
             else:
                 margin_score = 5.0
 
@@ -180,6 +225,9 @@ def _score(state: HQState) -> HQState:
 
             comp = {**c, "evidence_trends": t, "evidence_competition": comp,
                     "prices_samples": price_sample,
+                    "market": state.get("market") or "us-en",
+                    "fee_model_ref": fee_ref,
+                    "fee_source": fee_source,
                     "sub_scores": {"demand": demand_score, "competition": competition_score,
                                    "margin": margin_score, "feasibility": feasibility_score,
                                    "timing": timing_score},
@@ -344,13 +392,22 @@ def _graph():
     return g.compile()
 
 
-def run(task: str = "", task_id: int | None = None, workspace: str = "default") -> dict:
+def run(task: str = "", task_id: int | None = None, workspace: str = "default",
+        market: str | None = None) -> dict:
+    profile = pick_profile(market)
+    if profile is None:
+        detail = f"'{market}' not found or disabled" if market else "no enabled market profiles — enable one at /profiles (us-en · fr-fr · sa-ar)"
+        return {"ok": False, "error": f"no enabled market profile ({detail})", "task_id": task_id}
+    label = profile.get("label") or f"{profile.get('country', '')}-{profile.get('language', '')}".lower()
     try:
         result = _graph().invoke({"task": task or "scan niches",
-                                  "run_id": task_id, "progress": []},
+                                  "run_id": task_id, "progress": [],
+                                  "market": label,
+                                  "market_profile": profile},
                                  config={"recursion_limit": 30})
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "error": str(e), "task_id": task_id}
     if result.get("error"):
         return {"ok": False, "error": result["error"], "task_id": task_id}
-    return {"ok": True, "task_id": task_id, "summary": result.get("summary"), **(result.get("artifacts") or {})}
+    return {"ok": True, "task_id": task_id, "market": label,
+            "summary": result.get("summary"), **(result.get("artifacts") or {})}

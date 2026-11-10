@@ -13,17 +13,21 @@ from reportlab.pdfbase.ttfonts import TTFont
 from backend.app.config import ARABIC_FONT
 
 _PAGE = 8.5 * IN
-_REGISTERED = False
+_REGISTERED: dict[str, str] = {}
 
 
-def _font() -> str:
+def _font(font_path: Path | str | None = None) -> str:
+    """Register and return the font to use. Defaults to the bundled Arabic font (Amiri)."""
     global _REGISTERED
-    name = "Amiri-Regular"
-    if not _REGISTERED:
-        if not Path(ARABIC_FONT).exists():
-            raise FileNotFoundError(f"خط Amiri غير موجود في {ARABIC_FONT}")
-        pdfmetrics.registerFont(TTFont(name, str(ARABIC_FONT)))
-        _REGISTERED = True
+    path = Path(font_path) if font_path else Path(ARABIC_FONT)
+    key = str(path).lower()
+    name = _REGISTERED.get(key)
+    if not name:
+        if not path.exists():
+            raise FileNotFoundError(f"Font not found at {path}")
+        name = "HQFont-" + path.stem.replace(" ", "_")[:40]
+        pdfmetrics.registerFont(TTFont(name, str(path)))
+        _REGISTERED[key] = name
     return name
 
 
@@ -45,8 +49,14 @@ def _wrap_rtl(text: str, font_name: str, size: float, max_width: float) -> list[
     return lines or [""]
 
 
-def build_book_pdf(story: dict, image_paths: list[str], out_path: Path) -> Path:
-    font = _font()
+def build_book_pdf(story: dict, image_paths: list[str], out_path: Path,
+                   *, font_path: Path | str | None = None,
+                   language: str = "ar",
+                   text_direction: str = "rtl") -> Path:
+    font = _font(font_path)
+    subtitle = {"ar": "قصة مصوّرة بالعربية",
+                "fr": "Album illustré français",
+                "en": "Illustrated English book"}.get(language, "Illustrated book")
     out_path.parent.mkdir(parents=True, exist_ok=True)
     c = canvas.Canvas(str(out_path), pagesize=(_PAGE, _PAGE))
 
@@ -61,7 +71,7 @@ def build_book_pdf(story: dict, image_paths: list[str], out_path: Path) -> Path:
         c.drawCentredString(_PAGE / 2, _PAGE - 0.9 * IN - i * 0.62 * IN, line)
     c.setFont(font, 16) if font else c.setFont("Helvetica", 16)
     c.setFillColor(HexColor("#7A3B2E"))
-    c.drawCentredString(_PAGE / 2, 0.75 * IN, "قصة مصوّرة بالعربية")
+    c.drawCentredString(_PAGE / 2, 0.75 * IN, subtitle)
     c.showPage()
 
     body_images = image_paths[1:]

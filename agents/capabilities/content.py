@@ -43,21 +43,18 @@ def _page(i: int, page: Any) -> dict[str, str]:
 
 
 def write_story(idea: str, language: str = "ar", pages: int = 12) -> dict[str, Any]:
+    from agents.localization import get_language_profile, get_story_prompt
+
+    lang = (language or "ar").strip().lower()
+    profile = get_language_profile(lang)   # fail fast on unknown code — never guess
     model = get_chat_model(temperature=0.7, max_tokens=3000)
     attempts = 2
     last_error: Exception | None = None
     for attempt in range(attempts):
-        sys = ("[ROLE:story_writer]\n"
-               "You are a warm Arabic children's-story writer. Return ONLY valid JSON: "
-               '{"title": str, "character_sheet": str, "style": str, '
-               '"pages": [{"text": str, "image_prompt": str}], '
-               '"etsy": {"title": str, "description": str, "tags": [str]} }\n'
-               f"Exactly {pages} pages. Short child-facing Arabic sentences. "
-               f"{'Arabic' if language == 'ar' else 'English'} only.\n"
-               f"IDEA: {idea.strip()[:180]}\nPAGES: {pages}\n")
+        sys = get_story_prompt(lang, idea, pages)
         try:
             raw = model.invoke([SystemMessage(content=sys),
-                                HumanMessage(content="اكتب القصة")]).content
+                                HumanMessage(content=profile.story_human)]).content
             story = regex_json(str(raw))
             return validate_story(story, pages)
         except Exception as e:  # noqa: BLE001

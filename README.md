@@ -66,12 +66,14 @@ ai-business-hq/
 │   ├── departments/     books/ market_intel/ affiliate/ marketing/ finance/ qa/ product/ design/
 │   ├── capabilities/    web_research · content_generation · image_generation · pdf_generation
 │   │                    marketplace_listings · opportunity_scoring · unit_economics · qa_checks
-│   ├── fees/            etsy.py · kdp.py — verified (source_url + last_reviewed)
+│   ├── fees/            etsy.py · kdp.py — verified (source_url + last_reviewed) · registry.py
+│   ├── localization/    Per-language story prompts (en/fr/ar) · fonts · text direction · QA rules
 │   ├── workflows/       opportunity_engine.py · daily_research.py · publishing.py
+│   ├── profiles.py      pick enabled market profile (fail-fast when disabled/unknown)
 │   ├── registry.py      DepartmentSpec + AgentSpec
 │   ├── llm.py           Provider factory + resilient wrapper + deterministic demo model
 │   └── common.py        Supervisor helpers (LLM routing with deterministic fallback)
-├── tests/               pytest — currently 77 offline tests
+├── tests/               pytest — currently 112 offline tests
 ├── database/schema.sql  Reference schema (reference only; migrations run at boot)
 ├── docker-compose.yml   backend + frontend
 ├── fonts/Amiri-Regular.ttf   Arabic print font for the PDF pipeline
