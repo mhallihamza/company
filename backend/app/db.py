@@ -58,6 +58,8 @@ _PG_DDL = [
         niche       TEXT,
         score       DOUBLE PRECISION,
         status      TEXT DEFAULT 'new',
+        source      TEXT DEFAULT 'demo',
+        evidence    TEXT,
         payload     TEXT,
         workspace_id TEXT DEFAULT 'default',
         created_at  TIMESTAMPTZ DEFAULT now())""",
@@ -79,6 +81,8 @@ _PG_DDL = [
         kind        TEXT DEFAULT 'md',
         path        TEXT,
         title       TEXT,
+        source      TEXT DEFAULT 'demo',
+        evidence    TEXT,
         content     TEXT,
         workspace_id TEXT DEFAULT 'default',
         created_at  TIMESTAMPTZ DEFAULT now())""",
@@ -165,18 +169,30 @@ class Store:
         with _lock:
             ddl = _PG_DDL if self.kind == "pg" else _SQLITE_DDL
             try:
-                # safe migrations for new columns (won't touch existing tables)
                 if self.kind == "pg":
                     self._conn.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS publish_targets TEXT")
                     self._conn.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS price_usd REAL DEFAULT 4.99")
+                    self._conn.execute("ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'demo'")
+                    self._conn.execute("ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS evidence TEXT")
+                    self._conn.execute("ALTER TABLE reports ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'demo'")
+                    self._conn.execute("ALTER TABLE reports ADD COLUMN IF NOT EXISTS evidence TEXT")
                 else:
-                    have = {r[1] for r in
-                            self._conn.execute("PRAGMA table_info(products)").fetchall()}
-                    if "publish_targets" not in have:
+                    have_p = {r[1] for r in self._conn.execute("PRAGMA table_info(products)").fetchall()}
+                    if "publish_targets" not in have_p:
                         self._conn.execute("ALTER TABLE products ADD COLUMN publish_targets TEXT DEFAULT '[\"etsy\",\"kdp_paperback\",\"kdp_ebook\"]'")
-                    if "price_usd" not in have:
+                    if "price_usd" not in have_p:
                         self._conn.execute("ALTER TABLE products ADD COLUMN price_usd REAL DEFAULT 4.99")
-            except Exception:  # noqa: BLE001 — column may already exist
+                    have_o = {r[1] for r in self._conn.execute("PRAGMA table_info(opportunities)").fetchall()}
+                    if "source" not in have_o:
+                        self._conn.execute("ALTER TABLE opportunities ADD COLUMN source TEXT DEFAULT 'demo'")
+                    if "evidence" not in have_o:
+                        self._conn.execute("ALTER TABLE opportunities ADD COLUMN evidence TEXT")
+                    have_r = {r[1] for r in self._conn.execute("PRAGMA table_info(reports)").fetchall()}
+                    if "source" not in have_r:
+                        self._conn.execute("ALTER TABLE reports ADD COLUMN source TEXT DEFAULT 'demo'")
+                    if "evidence" not in have_r:
+                        self._conn.execute("ALTER TABLE reports ADD COLUMN evidence TEXT")
+            except Exception:  # noqa: BLE001 — safe migration: tables may be fresh
                 pass
             if self.kind == "pg":
                 for stmt in ddl:

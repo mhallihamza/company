@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Shell, { Spinner, ErrorBox, Empty } from "@/components/Shell";
+import SourceBadge from "@/components/SourceBadge";
 import { useLang } from "@/lib/lang";
 import { api, type Opportunity } from "@/lib/api";
 
@@ -76,6 +77,7 @@ export default function OpportunitiesPage() {
                   <div className="flex items-center gap-2">
                     <span className="badge badge-gold !text-[10px]">{o.sector}</span>
                     <span className="muted text-[11px]">#{o.opportunity_id}</span>
+                    <SourceBadge source={o.source} />
                   </div>
                   <h3 className="mt-1.5 font-bold leading-6">{o.title}</h3>
                   <div className="muted mt-1 text-[11px]">{o.niche ?? "—"}</div>

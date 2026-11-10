@@ -27,14 +27,26 @@ def audit(task_id: int | None, actor: str, action: str, detail: str = "") -> boo
 
 # ---------------- فرص ----------------
 def add_opportunity(sector: str, title: str, niche: str, score: float,
-                    payload: Optional[dict] = None, workspace: str = "default") -> int:
+                    payload: Optional[dict] = None, workspace: str = "default",
+                    source: str = "demo", evidence: Optional[dict] = None) -> int:
     s = _store()
-    sql = "INSERT INTO opportunities (sector,title,niche,score,payload,workspace_id) VALUES (?,?,?,?,?,?) RETURNING opportunity_id".replace("?", "%s" if s.kind == "pg" else "?")
+    sql = ("INSERT INTO opportunities (sector,title,niche,score,payload,workspace_id,source,evidence) "
+           "VALUES (?,?,?,?,?,?,?,?) RETURNING opportunity_id").replace(
+        "?", "%s" if s.kind == "pg" else "?")
     with s._cur() as cur:  # noqa: SLF001
-        cur.execute(sql, (sector, title, niche, float(score),
-                          json.dumps(payload or {}, ensure_ascii=False), workspace))
+        cur.execute(sql, (sector, title[:500], niche[:80], float(score),
+                          json.dumps(payload or {}, ensure_ascii=False), workspace,
+                          source, json.dumps(evidence or {}, ensure_ascii=False)))
         row = cur.fetchone()
         return int(row["opportunity_id"] if isinstance(row, dict) else row[0])
+
+
+def clamp_score(x: float | int | str | None) -> float:
+    try:
+        f = float(x)  # noqa: F841
+    except (TypeError, ValueError):
+        return 0.0
+    return max(0.0, min(10.0, round(f, 2)))
 
 
 def list_opportunities(sector: str | None = None, status: str | None = None,
@@ -102,12 +114,15 @@ def get_product(slug: str) -> dict[str, Any] | None:
 
 
 # ---------------- تقارير ----------------
-def add_report(path: str, title: str, content: str, kind: str = "md") -> int:
+def add_report(path: str, title: str, content: str, kind: str = "md",
+               source: str = "demo", evidence: Optional[dict] = None) -> int:
     s = _store()
-    sql = "INSERT INTO reports (kind,path,title,content) VALUES (?,?,?,?) RETURNING report_id".replace(
+    sql = ("INSERT INTO reports (kind,path,title,content,source,evidence) "
+           "VALUES (?,?,?,?,?,?) RETURNING report_id").replace(
         "?", "%s" if s.kind == "pg" else "?")
     with s._cur() as cur:  # noqa: SLF001
-        cur.execute(sql, (kind, str(path)[:500], title[:200], content))
+        cur.execute(sql, (kind, str(path)[:500], title[:200], content,
+                          source, json.dumps(evidence or {}, ensure_ascii=False)))
         row = cur.fetchone()
         return int(row["report_id"] if isinstance(row, dict) else row[0])
 

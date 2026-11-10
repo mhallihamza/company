@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Shell, { Spinner, ErrorBox, Empty } from "@/components/Shell";
+import SourceBadge from "@/components/SourceBadge";
 import { useLang } from "@/lib/lang";
 import { api, type Report } from "@/lib/api";
 
@@ -44,8 +45,11 @@ export default function ReportsPage() {
                   ? "border-[color:var(--gold)] bg-[color:var(--gold)]/10"
                   : "border-[color:var(--line)] bg-[color:var(--card)] hover:bg-white/5"}`}>
               <div className="flex items-center justify-between gap-2">
-                <span className="font-bold text-sm leading-6 text-start">{r.title ?? "Report"}</span>
-                <span className="badge badge-teal !text-[10px] shrink-0">{r.kind}</span>
+                <span className="font-bold text-sm leading-6 text-start flex-1 min-w-0 truncate">{r.title ?? "Report"}</span>
+                <span className="flex items-center gap-1.5 shrink-0">
+                  <SourceBadge source={r.source} />
+                  <span className="badge badge-teal !text-[10px]">{r.kind}</span>
+                </span>
               </div>
               <div className="muted text-[11px] mt-1 flex items-center justify-between gap-2">
                 <span className="truncate" dir="ltr">{(r.path ?? "").split(/[\\/]/).pop()}</span>

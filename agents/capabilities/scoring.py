@@ -19,10 +19,11 @@ def score_candidate(c: dict) -> dict:
         risks.append("نافذة روابط قصيرة")
     if demand in ("low", "unknown"):
         risks.append("طلب ضعيف أو غير مؤكد")
-    score = (DEMAND_SCORE.get(demand, 5.0) * 0.35
-             + COMPETITION_SCORE.get(comp, 5.0) * 0.25
-             + min(pct / 15.0, 1.0) * 10 * 0.25
-             + min(cookie / 30.0, 1.0) * 10 * 0.15)
+    score = max(0.0, min(10.0,
+        DEMAND_SCORE.get(demand, 5.0) * 0.35
+        + COMPETITION_SCORE.get(comp, 5.0) * 0.25
+        + min(pct / 15.0, 1.0) * 10 * 0.25
+        + min(cookie / 30.0, 1.0) * 10 * 0.15))
     return {**c,
             "unit_commission": round(price * pct / 100.0, 2),
             "score": round(score, 1),

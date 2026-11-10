@@ -51,6 +51,8 @@ export type Book = {
 export type Opportunity = {
   opportunity_id: number; sector: string; title: string; niche?: string;
   score?: number; status: string; payload?: string; created_at?: string;
+  source?: "live" | "partial" | "demo" | string;
+  evidence?: string;
 };
 export type Approval = {
   approval_id: number; kind: string; ref: string; status: string;
@@ -59,6 +61,8 @@ export type Approval = {
 export type Report = {
   report_id: number; kind: string; path?: string; title?: string;
   content?: string; created_at?: string;
+  source?: "live" | "partial" | "demo" | string;
+  evidence?: string;
 };
 export type Settings = {
   llm_mode: string; db_backend: string; autonomy_level: number;
