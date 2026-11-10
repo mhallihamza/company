@@ -181,7 +181,7 @@ Single database (Postgres via pool or SQLite); tables all carry `workspace_id='d
 | `reports` | generated report artifacts with source badges |
 | `settings` | single-writer key/value (`autonomy_level`, …) — all writes go through `set_setting()` |
 | `budgets` | monthly USD cap (default $50); enforced at task creation |
-| `market_profiles` | us-en · fr-fr · fr-fr seasonal calendars, fee_model_ref, font, QA refs |
+| `market_profiles` | us-en · fr-fr · sa-en seasonal calendars, fee_model_ref, font, QA refs |
 | `audit_logs` | every moral-significant action — CEO plan/execute, approvals, publishes |
 
 ---
