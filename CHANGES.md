@@ -151,7 +151,7 @@ Totals after fix: **0 High, 18 Medium, 10 Low.** `pip-audit --requirement backen
 
 At the founder's explicit request, ALL Arabic support was removed from the product:
 
-- **Frontend:** the entire Arabic dictionary (`ar:` in `frontend/lib/lang.tsx`) and the "AR — العربية" toggle
+- **Frontend:** the entire Arabic dictionary (`ar:` in `frontend/lib/lang.tsx`) and the Arabic toggle button
   are removed. `frontend/lib/lang.tsx` is now English-only; `<html dir="ltr">` always. The two pages that
   picked `title_ar`/`description_ar` conditionally now use the English fields.
 - **Backend:** CEO prompt translated to English (`agents/ceo/prompts.py`); routing drops Arabic normalization
