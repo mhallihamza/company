@@ -21,49 +21,23 @@ from backend.app import db as _db
 from backend.app.services import store as svc
 
 
-_WORD = re.compile(r"\b[\w\u0600-\u06FF]+\b", re.UNICODE)
+from agents.ceo.routing import route_keywords
 
 
 def _keyword_pick(text: str) -> str | None:
-    rules = [
-        ("affiliate", ("affiliate", "عمولة", "بالعمولة", "لعمولة", "commission")),
-        ("qa",         ("qa", "quality", "inspection", "جودة", "فحص", "امتثال", "preflight")),
-        ("finance",    ("finance", "رسوم", "هامش", "ربح", "ربحية", "عائد", "تكلفة",
-                        "margin", "profit", "usd", "price", "pricing", "سعر")),
-        ("marketing",  ("marketing", "seo", "pinterest", "تسويق")),
-        ("intelligence", ("intelligence", "فرص", "فرصة", "opportunity")),
-        ("books.market", ("trend", "market", "منافس", "السوق", "سوق")),
-        ("books.publishing", ("publish", "etsy", "kdp", "etsy", "انشر", "نشر")),
-        ("books.content", ("story", "content", "قصة", "حكاية", "اكتب", "ألف")),
-        ("product",     ("product", "candidate", "مرشح")),
-    ]
-    words = _WORD.findall(text.lower())
-    word_set = set(words)
-    # max keyword length wins; tie-breaker = domain specificity (affiliate > qa > finance > …)
-    best: tuple[int, int, str] | None = None
-    for rank, (domain, keys) in enumerate(rules):
-        hits = [k.lower() for k in keys if k.lower() in word_set]
-        if hits:
-            key_len = max(len(h) for h in hits)
-            candidate = (key_len, -rank, domain)
-            if best is None or candidate > best:
-                best = candidate
-    return best[2] if best else None
+    return route_keywords(text).get("department")
 
 
 def route_task(task: str) -> str:
-    ids = list_departments()
-    try:
-        model = get_chat_model(temperature=0, max_tokens=80)
-        sys = ("[ROLE:orchestrator]\nYou are the CEO router. Departments:\n"
-               + "\n".join(f"- {d.key} — {d.description_ar}" for d in ids)
-               + '\nReply ONLY JSON {"domain": "<key>"}')
-        raw = model.invoke([SystemMessage(content=sys),
-                            HumanMessage(content=task)]).content
-        picked = json.loads(re.search(r"\{.*?\}", str(raw), re.S).group(0))["domain"]
-        return picked if picked in DEPARTMENTS else _keyword_pick(task) or "books.content"
-    except Exception:  # noqa: BLE001
-        return _keyword_pick(task) or "books.content"
+    """Route a task to one department — LLM with keyword fallback; no guess on ambiguity."""
+    from agents.ceo.routing import route_llm
+    out = route_llm(task)
+    dept = out.get("department")
+    if dept in DEPARTMENTS:
+        return dept
+    fallback = route_keywords(task)
+    fallback_dept = fallback.get("department")
+    return fallback_dept if fallback_dept in DEPARTMENTS else "books.content"
 
 
 # ---------------- عقد الـ CEO ----------------
