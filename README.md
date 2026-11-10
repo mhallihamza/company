@@ -126,7 +126,7 @@ npm run build && npm start    # http://localhost:3000
 # or npm run dev for development
 
 # 4) Offline tests
-.\.venv\Scripts\python.exe -m pytest tests/ -v
+.\.venv\Scripts\python.exe -m pytest tests/ -q
 ```
 
 ### Docker
