@@ -10,6 +10,7 @@ langchain-anthropic==1.7.10
 langchain-openai==1.7.4
 # storage
 psycopg[binary]==3.3.8
+psycopg-pool==3.3.3
 # research / scraping (best-effort for unofficial endpoints)
 requests==2.34.2
 pytrends==4.9.2

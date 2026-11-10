@@ -27,10 +27,7 @@ class ProfileCreateIn(BaseModel):
     enabled: bool = True
 
 
-def _ensure_table():
-    s = get_store()
-    if s.kind == "pg":
-        s._conn.execute("""CREATE TABLE IF NOT EXISTS market_profiles (
+_DDL_PG = """CREATE TABLE IF NOT EXISTS market_profiles (
             profile_id BIGSERIAL PRIMARY KEY,
             country TEXT NOT NULL,
             language TEXT NOT NULL,
@@ -41,9 +38,8 @@ def _ensure_table():
             seasonal TEXT,
             enabled BOOLEAN DEFAULT TRUE,
             created_at TIMESTAMPTZ DEFAULT now(),
-            UNIQUE(country, language))""")
-    else:
-        s._conn.executescript("""CREATE TABLE IF NOT EXISTS market_profiles (
+            UNIQUE(country, language))"""
+_DDL_SQLITE = """CREATE TABLE IF NOT EXISTS market_profiles (
             profile_id INTEGER PRIMARY KEY AUTOINCREMENT,
             country TEXT NOT NULL,
             language TEXT NOT NULL,
@@ -54,8 +50,15 @@ def _ensure_table():
             seasonal TEXT,
             enabled BOOLEAN DEFAULT TRUE,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(country, language))""")
-        s._conn.commit()
+            UNIQUE(country, language))"""
+
+
+def _ensure_table():
+    s = get_store()
+    if s.kind == "pg":
+        s._execute(_DDL_PG)
+    else:
+        s._execute(_DDL_SQLITE)
 
 
 def seed():

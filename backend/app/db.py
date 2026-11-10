@@ -8,6 +8,8 @@
 from __future__ import annotations
 import contextlib
 import json
+import os
+import re
 import sqlite3
 import threading
 from typing import Any, Iterator
@@ -152,79 +154,153 @@ class Store:
         self.kind, self.backend_label, self.pg_diag = self._connect()
         self._ensure_schema()
 
+    import re
+_DSN_RE = re.compile(r"(postgres(?:ql)?|postgresql\+psycopg2)(\+[a-z0-9]+)?:\/\/[^\s]+", re.I)
+_SECRET_PARTS = re.compile(
+    r"(host|port|user(?:name)?|password|passwd|database|dbname)\s*[:=]\s*[\w.@%{}_\-]+",
+    re.I,
+)
+# Supabase names this refname in several forms
+_SUPA_REF = re.compile(r"postgres\.[a-z0-9]{20,}|[a-z0-9]{20,}\.supabase\.co?m?|pooler\.supabase\.com", re.I)
+
+
+def _sanitize(msg: str) -> str:
+    """Strip host, user, password, DSN details from any connection error text."""
+    out = _DSN_RE.sub("[redacted dsn]", str(msg))
+    out = _SECRET_PARTS.sub(r"\1=[redacted]", out)
+    out = _SUPA_REF.sub("[redacted]", out)
+    return out[:500]
+
+
+def _pg_diag_text(err: Exception | None, timed_out: bool) -> str:
+    if timed_out:
+        return "psycopg: connection timed out"
+    if err is None:
+        return ""
+    return f"psycopg: {_sanitize(err)}"
+
+
+class Store:
+    def __init__(self) -> None:
+        self._pool = None          # psycopg_pool.ConnectionPool for PG, None for SQLite
+        self.kind, self.backend_label, self.pg_diag = self._connect()
+        self._ensure_schema()
+
     # ---------- اتصال ----------
     def _connect(self):
         backend = config.DB_BACKEND
         if backend in ("auto", "supabase") and config.DATABASE_URL:
+            import threading as _th
+
             result: dict = {}
+            timed_out = _th.Event()
 
             def _attempt():
                 try:
-                    import psycopg
-                    result["conn"] = psycopg.connect(
-                        config.DATABASE_URL, connect_timeout=6, autocommit=True)
+                    from psycopg_pool import ConnectionPool
+                    min_size = int(os.getenv("DB_POOL_MIN", "1"))
+                    max_size = int(os.getenv("DB_POOL_MAX", "5"))
+                    max_idle = int(os.getenv("DB_POOL_MAX_IDLE", "60"))
+                    max_lifetime = int(os.getenv("DB_POOL_MAX_LIFETIME", "300"))
+                    pool = ConnectionPool(
+                        config.DATABASE_URL,
+                        min_size=min_size,
+                        max_size=max_size,
+                        max_idle=max_idle,
+                        max_lifetime=max_lifetime,
+                        check=ConnectionPool.check_connection,
+                        kwargs={"autocommit": True, "connect_timeout": 6},
+                        open=True,
+                    )
+                    result["pool"] = pool
                 except Exception as e:  # noqa: BLE001
                     result["err"] = e
 
-            # libpq قد يتجاهل connect_timeout أثناء حل DNS على Windows — نحصر كله في خيط
-            thread = threading.Thread(target=_attempt, daemon=True)
+            thread = _th.Thread(target=_attempt, daemon=True)
             thread.start()
-            thread.join(12)
-            if "conn" in result:
-                self._conn = result["conn"]
-                return "pg", "Supabase Postgres", ""
-            diag = (f"psycopg: {result['err']}" if "err" in result
-                    else "psycopg: connection timed out (12s)")
+            thread.join(10)
+
+            pool = result.get("pool")
+            if pool is not None:
+                try:
+                    with pool.connection(timeout=6) as conn:
+                        with conn.cursor() as cur:
+                            cur.execute("SELECT 1")
+                    self._pool = pool
+                    return "pg", "Supabase Postgres", ""
+                except Exception as e:  # noqa: BLE001
+                    try:
+                        pool.close()
+                    except Exception:  # noqa: BLE001
+                        pass
+                    result["err"] = e
+
+            diag = _pg_diag_text(result.get("err") if result.get("err") else None,
+                                 timed_out=timed_out.is_set())
             if backend == "supabase":
                 raise RuntimeError(f"Supabase connection failed: {diag}")
             config.SQLITE_PATH.parent.mkdir(parents=True, exist_ok=True)
-            self._conn = sqlite3.connect(config.SQLITE_PATH, check_same_thread=False)
-            self._conn.row_factory = sqlite3.Row
-            self._conn.execute("PRAGMA foreign_keys=ON")
             return "sqlite", f"SQLite ({config.SQLITE_PATH.name})", diag
 
         config.SQLITE_PATH.parent.mkdir(parents=True, exist_ok=True)
-        self._conn = sqlite3.connect(config.SQLITE_PATH, check_same_thread=False)
-        self._conn.row_factory = sqlite3.Row
-        self._conn.execute("PRAGMA foreign_keys=ON")
         return "sqlite", f"SQLite ({config.SQLITE_PATH.name})", ""
+
+    def _close_pool(self) -> None:
+        pool = getattr(self, "_pool", None)
+        if pool is not None:
+            try:
+                pool.close()
+            except Exception:  # noqa: BLE001
+                pass
+            self._pool = None
 
     def _ensure_schema(self) -> None:
         with _lock:
             ddl = _PG_DDL if self.kind == "pg" else _SQLITE_DDL
             try:
                 if self.kind == "pg":
-                    self._conn.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS publish_targets TEXT")
-                    self._conn.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS price_usd REAL DEFAULT 4.99")
-                    self._conn.execute("ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'demo'")
-                    self._conn.execute("ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS evidence TEXT")
-                    self._conn.execute("ALTER TABLE reports ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'demo'")
-                    self._conn.execute("ALTER TABLE reports ADD COLUMN IF NOT EXISTS evidence TEXT")
+                    with self._pool.connection() as conn:  # type: ignore[union-attr]
+                        conn.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS publish_targets TEXT")
+                        conn.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS price_usd REAL DEFAULT 4.99")
+                        conn.execute("ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'demo'")
+                        conn.execute("ALTER TABLE opportunities ADD COLUMN IF NOT EXISTS evidence TEXT")
+                        conn.execute("ALTER TABLE reports ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'demo'")
+                        conn.execute("ALTER TABLE reports ADD COLUMN IF NOT EXISTS evidence TEXT")
                 else:
-                    have_p = {r[1] for r in self._conn.execute("PRAGMA table_info(products)").fetchall()}
-                    if "publish_targets" not in have_p:
-                        self._conn.execute("ALTER TABLE products ADD COLUMN publish_targets TEXT DEFAULT '[\"etsy\",\"kdp_paperback\",\"kdp_ebook\"]'")
-                    if "price_usd" not in have_p:
-                        self._conn.execute("ALTER TABLE products ADD COLUMN price_usd REAL DEFAULT 4.99")
-                    have_o = {r[1] for r in self._conn.execute("PRAGMA table_info(opportunities)").fetchall()}
-                    if "source" not in have_o:
-                        self._conn.execute("ALTER TABLE opportunities ADD COLUMN source TEXT DEFAULT 'demo'")
-                    if "evidence" not in have_o:
-                        self._conn.execute("ALTER TABLE opportunities ADD COLUMN evidence TEXT")
-                    have_r = {r[1] for r in self._conn.execute("PRAGMA table_info(reports)").fetchall()}
-                    if "source" not in have_r:
-                        self._conn.execute("ALTER TABLE reports ADD COLUMN source TEXT DEFAULT 'demo'")
-                    if "evidence" not in have_r:
-                        self._conn.execute("ALTER TABLE reports ADD COLUMN evidence TEXT")
+                    conn = sqlite3.connect(config.SQLITE_PATH, check_same_thread=False)
+                    try:
+                        have_p = {r[1] for r in conn.execute("PRAGMA table_info(products)").fetchall()}
+                        if "publish_targets" not in have_p:
+                            conn.execute("ALTER TABLE products ADD COLUMN publish_targets TEXT DEFAULT '[\"etsy\",\"kdp_paperback\",\"kdp_ebook\"]'")
+                        if "price_usd" not in have_p:
+                            conn.execute("ALTER TABLE products ADD COLUMN price_usd REAL DEFAULT 4.99")
+                        have_o = {r[1] for r in conn.execute("PRAGMA table_info(opportunities)").fetchall()}
+                        if "source" not in have_o:
+                            conn.execute("ALTER TABLE opportunities ADD COLUMN source TEXT DEFAULT 'demo'")
+                        if "evidence" not in have_o:
+                            conn.execute("ALTER TABLE opportunities ADD COLUMN evidence TEXT")
+                        have_r = {r[1] for r in conn.execute("PRAGMA table_info(reports)").fetchall()}
+                        if "source" not in have_r:
+                            conn.execute("ALTER TABLE reports ADD COLUMN source TEXT DEFAULT 'demo'")
+                        if "evidence" not in have_r:
+                            conn.execute("ALTER TABLE reports ADD COLUMN evidence TEXT")
+                        conn.commit()
+                    finally:
+                        conn.close()
             except Exception:  # noqa: BLE001 — safe migration: tables may be fresh
                 pass
             if self.kind == "pg":
-                for stmt in ddl:
-                    self._conn.execute(stmt)
+                with self._pool.connection() as conn:  # type: ignore[union-attr]
+                    for stmt in ddl:
+                        conn.execute(stmt)
             else:
-                for stmt in ddl:
-                    self._conn.execute(stmt)
-                self._conn.commit()
+                conn = sqlite3.connect(config.SQLITE_PATH, check_same_thread=False)
+                try:
+                    for stmt in ddl:
+                        conn.execute(stmt)
+                    conn.commit()
+                finally:
+                    conn.close()
             if self._scalar("SELECT count(*) FROM budgets") == 0:
                 self._execute(
                     "INSERT INTO budgets (workspace_id, monthly_limit_usd) VALUES ('default', 50.0)")
@@ -237,18 +313,24 @@ class Store:
     def _cur(self) -> Iterator[Any]:
         if self.kind == "pg":
             from psycopg.rows import dict_row
-            with self._conn.cursor(row_factory=dict_row) as cur:
-                yield cur
+            assert self._pool is not None
+            with self._pool.connection() as conn:
+                with conn.cursor(row_factory=dict_row) as cur:
+                    yield cur
         else:
-            cur = self._conn.cursor()
+            conn = sqlite3.connect(config.SQLITE_PATH, check_same_thread=False)
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA foreign_keys=ON")
+            cur = conn.cursor()
             try:
                 yield cur
-                self._conn.commit()
+                conn.commit()
             except Exception:
-                self._conn.rollback()
+                conn.rollback()
                 raise
             finally:
                 cur.close()
+                conn.close()
 
     def _execute(self, sql: str, params: tuple = ()) -> None:
         ph = "%s" if self.kind == "pg" else "?"
@@ -328,6 +410,8 @@ def get_store() -> Store:
 def reset_store_for_tests() -> None:
     global _store
     with _lock:
+        if _store is not None:
+            _store._close_pool()
         _store = None
 
 

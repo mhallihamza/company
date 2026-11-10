@@ -28,6 +28,10 @@ services:
       - ETSY_SHOP_ID
       - ETSY_TAXONOMY_ID
       - DEFAULT_BOOK_PRICE_USD
+      - DB_POOL_MIN
+      - DB_POOL_MAX
+      - DB_POOL_MAX_IDLE
+      - DB_POOL_MAX_LIFETIME
     volumes:
       - ./storage:/app/storage
       - ./data:/app/data
