@@ -138,7 +138,7 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (resp.status === 401) {
     if (typeof window !== "undefined") window.dispatchEvent(new Event("hq:unauthorized"));
-    throw new ApiError(401, "رمز المؤسس غير صالح — سجّله في الإعدادات");
+    throw new ApiError(401, "Invalid founder token — refresh it in Settings");
   }
   if (!resp.ok) {
     let msg = `HTTP ${resp.status}`;
