@@ -9,6 +9,10 @@ The UI is English-only (Arabic support was removed by founder request).
 
 ## Architecture
 
+> **Deep-dive doc for engineers: `ARCH.md`** — layer map, every router, the CEO graph, market-profile
+> contract, the truthfulness rules (why nothing fake ever reaches the store), how to add a department /
+> market / capability, ops playbook and known boundaries.
+
 ```
 ┌───────────────────────────────────────────────────────────────┐
 │  Founder — you (goals, reports, approvals)                   │
@@ -73,7 +77,7 @@ ai-business-hq/
 │   ├── registry.py      DepartmentSpec + AgentSpec
 │   ├── llm.py           Provider factory + resilient wrapper + deterministic demo model
 │   └── common.py        Supervisor helpers (LLM routing with deterministic fallback)
-├── tests/               pytest — currently 112 offline tests
+├── tests/               pytest — currently 111 offline tests
 ├── database/schema.sql  Reference schema (reference only; migrations run at boot)
 ├── docker-compose.yml   backend + frontend
 ├── fonts/Amiri-Regular.ttf   Bundled font for the PDF pipeline (Latin coverage)

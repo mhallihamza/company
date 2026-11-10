@@ -28,14 +28,14 @@ async def lifespan(app: FastAPI):
         log.warning("db diag: %s", db.pg_diag)
     try:
         _seed_profiles()
-        log.info("market profiles seeded (us-en, fr-fr, sa-ar)")
+        log.info("market profiles seeded (us-en, fr-fr, sa-en)")
     except Exception as e:  # noqa: BLE001
         log.warning("profile seed failed: %s", e)
     _maybe_scheduler()
     yield
 
 
-app = FastAPI(title="AI Business HQ", version="3.0.0",
+app = FastAPI(title="AI Business HQ", version="3.2.0",
               description="CEO Agent + admin departments — LangGraph + FastAPI + Supabase",
               lifespan=lifespan)
 
@@ -78,5 +78,5 @@ def _maybe_scheduler() -> None:
 
 @app.get("/")
 def root():
-    return {"name": "AI Business HQ", "version": "3.0.0", "docs": "/docs",
+    return {"name": "AI Business HQ", "version": "3.2.0", "docs": "/docs",
             "api": "/api/health"}
