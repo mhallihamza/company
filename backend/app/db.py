@@ -313,7 +313,8 @@ class Store:
     def _cur(self) -> Iterator[Any]:
         if self.kind == "pg":
             from psycopg.rows import dict_row
-            assert self._pool is not None
+            if self._pool is None:  # defensive — kind == "pg" implies pool was created
+                raise RuntimeError("connection pool is not initialized for kind='pg'")
             with self._pool.connection() as conn:
                 with conn.cursor(row_factory=dict_row) as cur:
                     yield cur
@@ -372,7 +373,7 @@ class Store:
             row = cur.fetchone()
             return int(row["exec_id"] if isinstance(row, dict) else row[0])
 
-    def finish_execution(self, exec_id: int, status: str, detail: str = "", tokens: int = 0) -> None:
+    def finish_execution(self, exec_id: int, status: str, detail: str = "", tokens: int | None = None) -> None:
         self._execute("UPDATE task_executions SET status=?, finished_at=CURRENT_TIMESTAMP, detail=?, tokens_used=? WHERE exec_id=?",
                       (status, detail[:2000], tokens, exec_id))
 

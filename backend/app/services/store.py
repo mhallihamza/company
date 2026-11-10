@@ -209,7 +209,7 @@ def create_execution(task_id: int, agent: str) -> int:
     return _store().create_execution(task_id, agent)
 
 
-def finish_execution(exec_id: int, status: str, detail: str = "", tokens: int = 0) -> None:
+def finish_execution(exec_id: int, status: str, detail: str = "", tokens: int | None = None) -> None:
     _store().finish_execution(exec_id, status, detail, tokens)
 
 

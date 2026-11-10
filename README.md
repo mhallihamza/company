@@ -71,12 +71,15 @@ ai-business-hq/
 │   ├── registry.py      DepartmentSpec + AgentSpec
 │   ├── llm.py           Provider factory + resilient wrapper + deterministic demo model
 │   └── common.py        Supervisor helpers (LLM routing with deterministic fallback)
-├── tests/               pytest — currently 41 offline tests
+├── tests/               pytest — currently 77 offline tests
 ├── database/schema.sql  Reference schema (reference only; migrations run at boot)
 ├── docker-compose.yml   backend + frontend
 ├── fonts/Amiri-Regular.ttf   Arabic print font for the PDF pipeline
-└── archive/             Historical pre-HQ code — not imported or built
 ```
+
+> `archive/` was removed from the tree in Phase 7 — the historical pre-HQ code is
+> preserved on the `archive-legacy` branch, tagged `archive-legacy-v0.1.0`.
+> It is referenced here for review only and is not imported or built.
 
 ## The registered departments
 
@@ -169,8 +172,8 @@ the top bar. Every page, badge, and button follows the active language (`fronten
 
 ## Notes & honesty
 
-- **Archive is no longer a project.** The old `legacy/` and pre-HQ code were moved to `archive/`
-  with a full explanation (`archive/ARCHIVE.md`). Nothing there runs or is imported.
+- **Archive is no longer a project.** The old `legacy/` and pre-HQ code was moved out of `main`;
+  it lives on the `archive-legacy` branch, tagged `archive-legacy-v0.1.0`. Nothing there runs or is imported.
 - **Etsy** — without `ETSY_KEYSTRING` + `ETSY_SHARED_SECRET` + `ETSY_REFRESH_TOKEN` + `ETSY_SHOP_ID`,
   the **publish flow fails hard with a structured error** (HTTP 502) and the product stays `draft_failed`. No listing is ever created without explicit founder sign-off.
 - **LLM** — Mistral free tier hits 429. The `ResilientChatModel` **falls back to deterministic replies

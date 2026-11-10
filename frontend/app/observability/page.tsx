@@ -36,7 +36,15 @@ export default function ObservabilityPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="card"><div className="muted text-xs">{t("obs.executions")}</div><div className="metric mt-1">{c.executions ?? 0}</div></div>
             <div className="card"><div className="muted text-xs">{t("obs.success_rate")}</div><div className="metric mt-1 text-[color:var(--ok)]">{successRate({ success: obs.executions_by_agent.reduce((s, a) => s + a.success, 0), failed: obs.executions_by_agent.reduce((s, a) => s + a.failed, 0) })}%</div></div>
-            <div className="card"><div className="muted text-xs">{t("obs.tokens")}</div><div className="metric mt-1">{tokens.toLocaleString()}</div></div>
+            <div className="card">
+              <div className="muted text-xs">{t("obs.tokens")}</div>
+              <div className="metric mt-1">{tokens.toLocaleString()}</div>
+              <div className="mt-1 space-y-0.5">
+                <div className="muted text-[10px]">{t("obs.executions_with_data")}: <b>{obs.executions_with_token_data ?? 0}</b> · {t("obs.tokens_source")}: <b dir="ltr">{obs.tokens_source ?? "unmeasured"}</b></div>
+                <div className="muted text-[10px]">{t("obs.tokens_unmeasured")}: <b>{obs.executions_unmeasured ?? 0}</b></div>
+                <div className="muted text-[10px]">{t("obs.budget_estimate")}: <b>${(obs.budget_estimate_usd ?? 0).toFixed(2)}</b></div>
+              </div>
+            </div>
             <div className="card"><div className="muted text-xs">{t("obs.needs_you")}</div><div className="metric mt-1 text-[color:var(--warn)]">{obs.approvals.pending}</div></div>
           </div>
 
@@ -64,7 +72,10 @@ export default function ObservabilityPage() {
               <div className="mt-3 space-y-2">
                 {obs.executions_by_agent.map((a) => (
                   <div key={a.agent} className="flex items-center gap-3">
-                    <div className="w-40 shrink-0 text-[12px] truncate" dir="ltr">{a.agent}</div>
+                    <div className="w-40 shrink-0 text-[12px] truncate" dir="ltr" title={a.token_source === "measured" ? "tokens measured from provider" : "tokens unmeasured (provider returned none)"}>
+                      {a.agent}
+                      <span className={`ms-1 text-[9px] ${a.token_source === "measured" ? "text-[color:var(--ok)]" : "muted"}`}>({a.token_source ?? "unmeasured"})</span>
+                    </div>
                     <div className="h-6 flex-1 rounded bg-black/40 overflow-hidden">
                       <div className="h-full bg-gradient-to-l from-[color:var(--teal)]/60 to-[color:var(--teal)]" style={{ width: `${(a.executions / agentMax) * 100}%` }} />
                     </div>

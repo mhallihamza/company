@@ -20,6 +20,94 @@ from langchain_core.outputs import ChatGeneration, ChatResult
 _note_lock = threading.Lock()
 _last_note = "لم يُستخدم النموذج بعد"
 
+# ---- token usage accounting (measured from provider metadata when available) ----
+_usage_lock = threading.Lock()
+_usage_accum: dict[str, Any] | None = None
+
+
+def reset_usage_counter() -> None:
+    global _usage_accum
+    with _usage_lock:
+        _usage_accum = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0,
+                        "calls": 0, "measured_calls": 0}
+
+
+def _read_usage_from_message(message: Any) -> dict[str, int] | None:
+    """Extract (input_tokens, output_tokens, total_tokens) from a langchain AIMessage.
+
+    langchain-core 0.3+ exposes message.usage_metadata; OpenAI providers mirror it in
+    response_metadata['token_usage'] / ['usage']. Mistral exposes usage_metadata too.
+    Returns None when the provider did not return usage data.
+    """
+    try:
+        um = getattr(message, "usage_metadata", None)
+        if isinstance(um, dict):
+            inp = um.get("input_tokens", um.get("prompt_tokens"))
+            out = um.get("output_tokens", um.get("completion_tokens"))
+            tot = um.get("total_tokens")
+            if tot is None and (inp is not None or out is not None):
+                tot = int(inp or 0) + int(out or 0)
+            if tot is not None:
+                return {"input_tokens": int(inp or 0), "output_tokens": int(out or 0),
+                        "total_tokens": int(tot)}
+        md = getattr(message, "response_metadata", None) or {}
+        if isinstance(md, dict):
+            tu = md.get("token_usage") or md.get("usage") or md.get("usage_metadata")
+            if isinstance(tu, dict):
+                inp = tu.get("input_tokens", tu.get("prompt_tokens"))
+                out = tu.get("output_tokens", tu.get("completion_tokens"))
+                tot = tu.get("total_tokens")
+                if tot is None and (inp is not None or out is not None):
+                    tot = int(inp or 0) + int(out or 0)
+                if tot is not None:
+                    return {"input_tokens": int(inp or 0), "output_tokens": int(out or 0),
+                            "total_tokens": int(tot)}
+    except Exception:  # noqa: BLE001 — usage parsing must never crash generation
+        return None
+    return None
+
+
+def _record_usage(result: "ChatResult | None") -> None:
+    global _usage_accum
+    totals = None
+    if result is not None:
+        try:
+            message = result.generations[0].message
+            totals = _read_usage_from_message(message)
+        except Exception:  # noqa: BLE001
+            totals = None
+    with _usage_lock:
+        acc = _usage_accum or {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0,
+                               "calls": 0, "measured_calls": 0}
+        acc["calls"] += 1
+        if totals:
+            acc["measured_calls"] += 1
+            acc["input_tokens"] += totals["input_tokens"]
+            acc["output_tokens"] += totals["output_tokens"]
+            acc["total_tokens"] += totals["total_tokens"]
+        _usage_accum = acc
+
+
+def usage_snapshot() -> dict[str, Any] | None:
+    """Snapshot of LLM calls made since reset_usage_counter().
+
+    Returns None when no call was made at all.
+    tokens are None when the provider returned no usage metadata (never a fake 0).
+    """
+    with _usage_lock:
+        acc = dict(_usage_accum) if _usage_accum else None
+    if not acc or acc["calls"] == 0:
+        return None
+    if acc["measured_calls"] == 0:
+        return {"calls": acc["calls"], "measured_calls": 0,
+                "input_tokens": None, "output_tokens": None, "total_tokens": None,
+                "source": "unmeasured"}
+    return {"calls": acc["calls"], "measured_calls": acc["measured_calls"],
+            "input_tokens": acc["input_tokens"],
+            "output_tokens": acc["output_tokens"],
+            "total_tokens": acc["total_tokens"],
+            "source": "measured"}
+
 
 def llm_last_note() -> str:
     with _note_lock:
@@ -52,6 +140,7 @@ class ScriptedChatModel(BaseChatModel):
                          if not isinstance(m, SystemMessage))
         # المنسق يفهم مهمة المستخدم فقط؛ المشرفون يقرؤون كل السياق
         content = _ROLES.get(role, lambda t: t)(user if role == "orchestrator" else full)
+        _record_usage(None)   # fake model: calls counted, but nothing is measured
         return ChatResult(generations=[ChatGeneration(message=AIMessage(content=content))])
 
 
@@ -182,9 +271,11 @@ class ResilientChatModel(BaseChatModel):
         try:
             result = self.primary._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
             _note("live: real model used")
+            _record_usage(result)
             return result
         except Exception as e:  # noqa: BLE001
             _note(f"live model failed ({str(e)[:120]}) → deterministic fallback")
+            # fallback (scripted) counts itself as an unmeasured call
             return self.fallback._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
 
 

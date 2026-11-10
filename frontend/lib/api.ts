@@ -31,6 +31,7 @@ export type DomainAgg = {
 };
 export type AgentAgg = {
   agent: string; executions: number; tokens_used: number; success: number; failed: number;
+  executions_with_token_data?: number; tokens_measured?: number | null; token_source?: "measured" | "unmeasured" | string;
 };
 export type Observability = {
   llm_mode: string; db_backend: string; db_diag: string; storage: string;
@@ -39,6 +40,12 @@ export type Observability = {
   tasks_by_domain: DomainAgg[];
   approvals: { pending: number; approved: number; rejected: number };
   tokens_total: number;
+  tokens_measured_total?: number;
+  executions_with_token_data?: number;
+  executions_unmeasured?: number;
+  tokens_source?: "measured" | "unmeasured" | "measured+unmeasured" | string;
+  budget_estimate_usd?: number;
+  budget_note?: string;
   recent_tasks: Record<string, unknown>[];
   audit: AuditEntry[];
 };

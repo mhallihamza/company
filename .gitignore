@@ -8,7 +8,6 @@
 *.sqlite
 *.sqlite3
 data/
-archive/data/
 storage/books/
 storage/reports/
 

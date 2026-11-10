@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from agents import registry
 from backend.app.auth import require_founder
 from backend.app.services import store as svc
+from backend.app.services.autonomy import department_allowed
 
 router = APIRouter(tags=["departments"], dependencies=[Depends(require_founder)])
 
@@ -34,6 +35,12 @@ def run_dept(key: str, body: RunIn):
     spec = registry.get_department(key)
     if not spec:
         raise HTTPException(404, f"no department registered named {key}")
+
+    autonomy = int(svc.get_setting("autonomy_level") or "1")
+    if not department_allowed(autonomy, key):
+        raise HTTPException(403,
+            f"department '{key}' requires higher autonomy level (current={autonomy})")
+
     task_id = svc.create_task("manual", key, ref=(body.task or key)[:200],
                               input_text=body.task)
     exec_id = svc.create_execution(task_id, key)
@@ -42,7 +49,18 @@ def run_dept(key: str, body: RunIn):
         ref = (body.task or key).split()[-1] if body.task else key
         kwargs["human_confirmed"] = _approved_ref_exists(ref)
     try:
-        out = spec.run(**kwargs)
+        from agents import llm as _llm
+        _llm.reset_usage_counter()
+        try:
+            out = spec.run(**kwargs)
+        except Exception as e:  # noqa: BLE001
+            svc.finish_task(task_id, "failed", str(e)[:800])
+            svc.finish_execution(exec_id, "failed", str(e)[:400])
+            raise HTTPException(500, f"department failed: {e}") from e
+        usage = _llm.usage_snapshot()
+        tokens_used = usage["total_tokens"] if usage and usage.get("source") == "measured" else None
+    except HTTPException:
+        raise
     except Exception as e:  # noqa: BLE001
         svc.finish_task(task_id, "failed", str(e)[:800])
         svc.finish_execution(exec_id, "failed", str(e)[:400])
@@ -52,7 +70,7 @@ def run_dept(key: str, body: RunIn):
                     (out.get("summary") or out.get("error") or "")[:400])
     svc.finish_execution(exec_id, "success" if ok else "failed",
                          str(out.get("summary") or out.get("error") or "")[:400],
-                         int(out.get("tokens_used", 0) or 0))
+                         tokens_used)
     return out
 
 

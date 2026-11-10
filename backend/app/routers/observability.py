@@ -17,20 +17,31 @@ router = APIRouter(tags=["observability"], dependencies=[Depends(require_founder
 @router.get("/observability")
 def observability():
     s = get_store()
-    # بكل قسم/وكيل: إجمالي + نجاح + فشل + رموز مستهلكة
+    # بكل قسم/وكيل: إجمالي + نجاح + فشل + رموز (المقاسة فقط — غير المقاسة تبقى NULL)
     by_agent = s.q(
         "SELECT agent, COUNT(*) AS executions, "
-        "COALESCE(SUM(tokens_used), 0) AS tokens_used, "
+        "COUNT(tokens_used) AS executions_with_token_data, "
+        "SUM(tokens_used) AS tokens_measured, "
         "SUM(CASE WHEN status='success' THEN 1 ELSE 0 END) AS success, "
         "SUM(CASE WHEN status != 'success' THEN 1 ELSE 0 END) AS failed "
         "FROM task_executions GROUP BY agent ORDER BY executions DESC")
+    for row in by_agent:
+        row["token_source"] = "measured" if int(row.get("executions_with_token_data") or 0) > 0 else "unmeasured"
+        row["tokens_used"] = row.get("tokens_measured") or 0
     by_domain = s.q(
         "SELECT domain, COUNT(*) AS total, "
         "SUM(CASE WHEN status='success' THEN 1 ELSE 0 END) AS success, "
         "SUM(CASE WHEN status != 'success' THEN 1 ELSE 0 END) AS failed, "
         "MAX(finished_at) AS last_finished "
         "FROM tasks GROUP BY domain ORDER BY total DESC")
-    total_tokens = sum(int(a.get("tokens_used") or 0) for a in by_agent)
+    total_executions = sum(int(a.get("executions") or 0) for a in by_agent)
+    measured_executions = sum(int(a.get("executions_with_token_data") or 0) for a in by_agent)
+    total_tokens = sum(int(a.get("tokens_measured") or 0) for a in by_agent)
+    # ميزانية التقدير: 0.15$ ثابته لكل مهمة (المؤسسة في الميزانية) — وليست قياساً من المزود
+    budget_estimate_usd = round(total_executions * 0.15, 4)
+    tokens_source = ("measured" if measured_executions == total_executions and total_executions
+                     else "unmeasured" if measured_executions == 0
+                     else "measured+unmeasured")
 
     # نتائج الموافقات
     approvals = {r["status"]: int(r["n"]) for r in s.q(
@@ -51,6 +62,12 @@ def observability():
         "tasks_by_domain": by_domain,
         "approvals": approvals_summary,
         "tokens_total": total_tokens,
+        "tokens_measured_total": total_tokens,
+        "executions_with_token_data": measured_executions,
+        "executions_unmeasured": max(0, total_executions - measured_executions),
+        "tokens_source": tokens_source,
+        "budget_estimate_usd": budget_estimate_usd,
+        "budget_note": "flat $0.15 per finished task — estimated, not provider-measured",
         "recent_tasks": svc.list_tasks(limit=8),
         "audit": svc.list_audit(limit=15),
     }

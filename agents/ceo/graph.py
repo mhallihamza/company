@@ -21,16 +21,19 @@ from backend.app import db as _db
 from backend.app.services import store as svc
 
 
-from agents.ceo.routing import route_keywords
-
-
 def _keyword_pick(text: str) -> str | None:
+    from agents.ceo.routing import route_keywords
     return route_keywords(text).get("department")
+
+
+def _autonomy_allowed(level: int, key: str) -> bool:
+    from backend.app.services.autonomy import department_allowed
+    return department_allowed(level, key)
 
 
 def route_task(task: str) -> str:
     """Route a task to one department — LLM with keyword fallback; no guess on ambiguity."""
-    from agents.ceo.routing import route_llm
+    from agents.ceo.routing import route_keywords, route_llm
     out = route_llm(task)
     dept = out.get("department")
     if dept in DEPARTMENTS:
@@ -59,6 +62,16 @@ def _execute(state: CEOState) -> CEOState:
             _db.get_store().finish_execution(exec_id, "failed", "no department registered", 0)
         return {"error": f"no department registered named {domain}", "exec_id": exec_id}
 
+    # Autonomy gate — block departments not allowed at this level
+    from backend.app.services import store as _svc
+    autonomy = int(_svc.get_setting("autonomy_level") or "1")
+    if not _autonomy_allowed(autonomy, domain):
+        if exec_id:
+            _db.get_store().finish_execution(exec_id, "blocked",
+                                             f"blocked by autonomy level {autonomy}", 0)
+        return {"error": f"department '{domain}' blocked by autonomy level {autonomy}",
+                "exec_id": exec_id}
+
     # بوابة النشر: لا تنفيذ نشر قبل موافقة بشرية صريحة
     if spec.approval_policy == "human_required" and not state.get("human_confirmed"):
         if exec_id:
@@ -71,10 +84,15 @@ def _execute(state: CEOState) -> CEOState:
     if spec.approval_policy == "human_required":
         kwargs["human_confirmed"] = bool(state.get("human_confirmed"))
 
+    from agents import llm as _llm
+    _llm.reset_usage_counter()
     try:
         out = spec.run(**kwargs)
     except Exception as e:  # noqa: BLE001
         out = {"ok": False, "error": str(e)}
+    usage = _llm.usage_snapshot()
+    # null, never 0, when the provider reported no usage metadata
+    tokens_used = usage["total_tokens"] if usage and usage.get("source") == "measured" else None
 
     ok = bool(out.get("ok"))
     if exec_id:
@@ -82,7 +100,7 @@ def _execute(state: CEOState) -> CEOState:
             exec_id,
             "success" if ok else "failed",
             str(out.get("summary") or out.get("error", ""))[:400],
-            int(out.get("tokens_used", 0) or 0))
+            tokens_used)
     _db.audit(task_id, domain, "execute", str(out)[:600])
     return {"artifacts": out, "summary": out.get("summary") or "",
             "error": out.get("error") or "", "exec_id": exec_id}
