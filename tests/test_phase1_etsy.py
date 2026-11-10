@@ -52,15 +52,14 @@ class StubResp:
 def _make_cfg():
     os.environ["ETSY_KEYSTRING"] = "TEST_KEYSTRING"
     os.environ["ETSY_SHARED_SECRET"] = "TEST_SHARED_SECRET"
-    os.environ["ETSY_ACCESS_TOKEN"] = "TEST_ACCESS"
     os.environ["ETSY_REFRESH_TOKEN"] = "TEST_REFRESH"
     os.environ["ETSY_SHOP_ID"] = "12345"
     os.environ["ETSY_TAXONOMY_ID"] = "116"
 
 
 def _clear_cfg():
-    for k in ("ETSY_KEYSTRING", "ETSY_SHARED_SECRET", "ETSY_ACCESS_TOKEN",
-              "ETSY_REFRESH_TOKEN", "ETSY_SHOP_ID", "ETSY_TAXONOMY_ID"):
+    for k in ("ETSY_KEYSTRING", "ETSY_SHARED_SECRET", "ETSY_REFRESH_TOKEN",
+              "ETSY_SHOP_ID", "ETSY_TAXONOMY_ID", "ETSY_API_KEY", "ETSY_ACCESS_TOKEN"):
         os.environ.pop(k, None)
 
 

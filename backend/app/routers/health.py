@@ -3,6 +3,8 @@ from fastapi import APIRouter, Depends
 
 from backend.app.auth import require_founder
 
+from agents.capabilities.marketplace import etsy_config_status
+
 router = APIRouter(tags=["health"])
 
 
@@ -20,8 +22,9 @@ def admin_health(_: str = Depends(require_founder)):
 
     store = get_store()
     return {
-        "ok": True, "version": "3.1.0",
+        "ok": True, "version": "3.2.0",
         "db_backend": store.backend_label,
         "llm_mode": mode_label(),
+        "etsy": etsy_config_status(),
         "counts": counts(),
     }

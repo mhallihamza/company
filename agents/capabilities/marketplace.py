@@ -14,10 +14,9 @@ the shared secret is configured. OAuth is via refresh-token flow
 before expiry *and* once after a 401, then retry.
 
 Env (.env):
-  ETSY_KEYSTRING          — the keystring (preferred). Legacy alias: ETSY_API_KEY.
+  ETSY_KEYSTRING          — the keystring. Legacy alias: ETSY_API_KEY (deprecation warning).
   ETSY_SHARED_SECRET      — REQUIRED together with the keystring.
-  ETSY_ACCESS_TOKEN       — short-lived access token (refreshed on demand).
-  ETSY_REFRESH_TOKEN      — long-lived refresh token.
+  ETSY_REFRESH_TOKEN      — OAuth refresh token.
   ETSY_SHOP_ID            — numeric shop id.
   ETSY_TAXONOMY_ID        — taxonomy for a "download" listing (default: printable book).
 """
@@ -36,12 +35,24 @@ TOKEN_GRACE_S = 60
 # In-memory cache so we don't hit the token endpoint on every call (or every test).
 _state_lock = threading.Lock()
 _state: dict[str, Any] = {"token": None, "expires_at": 0.0}
+_deprecation_once_logged: set[str] = set()
+
+
+def _warn_once(key: str) -> None:
+    if key in _deprecation_once_logged:
+        return
+    _deprecation_once_logged.add(key)
+    print(f"[etsy] WARNING: {key} is deprecated — use ETSY_KEYSTRING instead. It will be removed in a future release.", flush=True)
 
 
 def _read_env() -> dict[str, str]:
-    keystring = os.getenv("ETSY_KEYSTRING") or os.getenv("ETSY_API_KEY") or ""
+    keystring = os.getenv("ETSY_KEYSTRING")
+    if not keystring:
+        legacy = os.getenv("ETSY_API_KEY")
+        if legacy:
+            _warn_once("ETSY_API_KEY")
+            keystring = legacy
     shared_secret = os.getenv("ETSY_SHARED_SECRET", "")
-    access_token = os.getenv("ETSY_ACCESS_TOKEN", "")
     refresh_token = os.getenv("ETSY_REFRESH_TOKEN", "")
     shop_id = os.getenv("ETSY_SHOP_ID", "")
     taxonomy_raw = os.getenv("ETSY_TAXONOMY_ID", "")
@@ -50,13 +61,29 @@ def _read_env() -> dict[str, str]:
     except ValueError:
         taxonomy_id = 0
     return {
-        "keystring": keystring,
+        "keystring": keystring or "",
         "shared_secret": shared_secret,
-        "access_token": access_token,
         "refresh_token": refresh_token,
         "shop_id": shop_id,
         "taxonomy_id": taxonomy_id,
     }
+
+
+def etsy_config_status() -> dict[str, bool]:
+    """Boolean map only — never exposes values from the environment."""
+    cfg = _read_env()
+    presence = {
+        "etsy_keystring": bool(cfg["keystring"]),
+        "etsy_shared_secret": bool(cfg["shared_secret"]),
+        "etsy_refresh_token": bool(cfg["refresh_token"]),
+        "etsy_shop_id": bool(cfg["shop_id"]),
+        "etsy_taxonomy_id": bool(cfg["taxonomy_id"]),
+    }
+    presence["etsy_configured"] = all(presence[k] for k in ("etsy_keystring",
+                                                             "etsy_shared_secret",
+                                                             "etsy_refresh_token",
+                                                             "etsy_shop_id"))
+    return presence
 
 
 def _api_key_header(cfg: dict[str, str]) -> str:
@@ -66,22 +93,10 @@ def _api_key_header(cfg: dict[str, str]) -> str:
     return cfg["keystring"]
 
 
-def _config_summary() -> dict[str, str]:
-    """Safe log summary — never includes secrets."""
-    cfg = _read_env()
-    return {
-        "keystring_set": "true" if cfg["keystring"] else "false",
-        "shared_secret_set": "true" if cfg["shared_secret"] else "false",
-        "access_token_set": "true" if cfg["access_token"] else "false",
-        "refresh_token_set": "true" if cfg["refresh_token"] else "false",
-        "shop_id": cfg["shop_id"] or "",
-    }
-
-
 def _auth_headers(cfg: dict[str, str]) -> dict[str, str]:
     return {
         "x-api-key": _api_key_header(cfg),
-        "Authorization": f"Bearer {cfg['access_token']}",
+        "Authorization": f"Bearer {_state.get('token') or ''}",
         "Accept": "application/json",
     }
 
@@ -91,7 +106,6 @@ def _san(msg: str, cfg: Optional[dict[str, str]] = None) -> str:
     secret_like = [
         cfg["keystring"] if cfg else "",
         cfg["shared_secret"] if cfg else "",
-        cfg["access_token"] if cfg else "",
         cfg["refresh_token"] if cfg else "",
     ]
     out = msg
@@ -174,21 +188,17 @@ def _token_request(cfg: dict[str, str]) -> dict[str, Any]:
 
 
 def _ensure_fresh_token(cfg: dict[str, str]) -> bool:
-    """Refresh if expired or within grace; returns True if we have a token, False otherwise."""
+    """Short-circuit if cached+fresh; otherwise refresh and return whether fresh."""
     with _state_lock:
-        cached_token = _state["token"]
-        cached_exp = float(_state["expires_at"] or 0)
-    if cached_token and time.time() < cached_exp - TOKEN_GRACE_S:
-        cfg["access_token"] = cached_token
-        return True
+        cached = _state["token"]
+        if cached and time.time() < float(_state["expires_at"] or 0) - TOKEN_GRACE_S:
+            return True
     return _refresh_token(cfg)
 
 
 def _refresh_token(cfg: dict[str, str]) -> bool:
     with _state_lock:
-        # re-check inside lock — if another thread refreshed, reuse
         if _state["token"] and time.time() < float(_state["expires_at"]) - TOKEN_GRACE_S:
-            cfg["access_token"] = _state["token"]
             return True
         if not cfg["refresh_token"]:
             return False
@@ -200,7 +210,6 @@ def _refresh_token(cfg: dict[str, str]) -> bool:
             return False
         _state["token"] = token
         _state["expires_at"] = time.time() + expires_in
-        cfg["access_token"] = token
         return True
 
 
@@ -323,8 +332,8 @@ def etsy_create_draft(meta: dict[str, Any], pdf_path: str, cover_path: str | Non
         raise EtsyError("Etsy not configured: ETSY_KEYSTRING is not set", 0)
     if not cfg["shop_id"]:
         raise EtsyError("Etsy not configured: ETSY_SHOP_ID is not set", 0)
-    if not cfg["access_token"] and not cfg["refresh_token"]:
-        raise EtsyError("Etsy not configured: neither ETSY_ACCESS_TOKEN nor ETSY_REFRESH_TOKEN is set", 0)
+    if not cfg["refresh_token"]:
+        raise EtsyError("Etsy not configured: ETSY_REFRESH_TOKEN is not set", 0)
 
     price = float(price if price is not None else float(os.getenv("DEFAULT_BOOK_PRICE_USD", "4.99")))
 

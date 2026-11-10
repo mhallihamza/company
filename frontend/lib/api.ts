@@ -1,11 +1,19 @@
 // عميل الـ API الموحد — يضيف Bearer تلقائياً وإلا يفتح نافذة الرمز عبر حدث المتصفح
 
-export type Health = {
+export type Health = { status: string };
+
+export type AdminHealth = {
   ok: boolean; version?: string; db_backend?: string; db_diag?: string;
   llm_mode?: string; counts?: Record<string, number>;
+  etsy: {
+    etsy_keystring: boolean;
+    etsy_shared_secret: boolean;
+    etsy_refresh_token: boolean;
+    etsy_shop_id: boolean;
+    etsy_taxonomy_id: boolean;
+    etsy_configured: boolean;
+  };
 };
-
-export type AdminHealth = Health;
 export type AgentCard = {
   agent: string; role: string; tier: "reasoning" | "fast" | "deterministic" | string;
   tools: string[]; version: string;
@@ -70,6 +78,17 @@ export type Settings = {
   llm_mode: string; db_backend: string; autonomy_level: number;
   autonomy_levels: { level: number; name: string; describe: string }[];
   keys: Record<string, string>; scheduler_enabled: boolean;
+  etsy: {
+    status: "configured" | "not_configured";
+    variables: {
+      etsy_keystring: boolean;
+      etsy_shared_secret: boolean;
+      etsy_refresh_token: boolean;
+      etsy_shop_id: boolean;
+      etsy_taxonomy_id: boolean;
+      etsy_configured: boolean;
+    };
+  };
 };
 export type AuditEntry = {
   log_id: number; task_id?: number | null; actor: string; action: string;

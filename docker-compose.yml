@@ -17,19 +17,16 @@ services:
       - OPENAI_API_KEY
       - LLM_PROVIDER
       - LLM_MODEL
-      - KIDBOOK_FAKE_LLM
       - AIHQ_FAKE_LLM
       - AIHQ_ALLOW_DEMO
       - ENABLE_SCHEDULER
       - TZ
       - CORS_ORIGINS
-      - ETSY_API_KEY
-      - ETSY_ACCESS_TOKEN
-      - ETSY_SHOP_ID
-      - ETSY_TAXONOMY_ID
       - ETSY_KEYSTRING
       - ETSY_SHARED_SECRET
       - ETSY_REFRESH_TOKEN
+      - ETSY_SHOP_ID
+      - ETSY_TAXONOMY_ID
       - DEFAULT_BOOK_PRICE_USD
     volumes:
       - ./storage:/app/storage

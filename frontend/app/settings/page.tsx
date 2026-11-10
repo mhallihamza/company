@@ -70,7 +70,7 @@ export default function SettingsPage() {
             </div>
           </section>
 
-          {/* Keys */}
+          {/* Keys + Etsy status */}
           <section className="card">
             <h2 className="text-lg font-bold">🔑 {t("settings.keys")}</h2>
             <div className="mt-4 divide-y divide-[color:var(--line)]">
@@ -80,6 +80,24 @@ export default function SettingsPage() {
                   <span className="font-mono" dir="ltr">{v}</span>
                 </div>
               ))}
+            </div>
+            <div className="mt-4 rounded-xl border border-[color:var(--line)] p-3">
+              <div className="font-bold">Etsy Open API v3</div>
+              <div className="muted text-[11px] mt-0.5">
+                {settings.etsy.status === "configured"
+                  ? "🟢 Configured — real listing uploads allowed after your sign-off"
+                  : "⚪ Not configured — publishing stays in draft_mock until env vars are set"}
+              </div>
+              <div className="grid grid-cols-2 gap-1.5 mt-3 text-[11px]">
+                {Object.entries(settings.etsy.variables)
+                  .filter(([k]) => k !== "etsy_configured" && k !== "etsy_taxonomy_id")
+                  .map(([k, v]) => (
+                    <div key={k} className="flex items-center justify-between gap-2">
+                      <span className="muted font-mono">{k}</span>
+                      <span className={`badge ${v ? "badge-ok" : "badge-err"} !text-[10px]`}>{v ? "set" : "missing"}</span>
+                    </div>
+                  ))}
+              </div>
             </div>
             <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-[color:var(--line)] p-3">
               <div className="text-sm">

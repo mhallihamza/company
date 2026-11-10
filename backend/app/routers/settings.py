@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from backend.app.auth import require_founder
 from backend.app.services import store as svc
 from agents.llm import mode_label
+from agents.capabilities.marketplace import etsy_config_status
 
 router = APIRouter(tags=["settings"], dependencies=[Depends(require_founder)])
 
@@ -29,6 +30,7 @@ def _redact(v: str) -> str:
 
 @router.get("/settings")
 def settings():
+    ext = etsy_config_status()
     return {
         "llm_mode": mode_label(),
         "db_backend": os.getenv("DB_BACKEND", "auto"),
@@ -36,9 +38,12 @@ def settings():
         "autonomy_levels": AUTONOMY_LEVELS,
         "keys": {
             "MISTRAL_API_KEY": _redact(os.getenv("MISTRAL_API_KEY", "")),
-            "ETSY_API_KEY": _redact(os.getenv("ETSY_API_KEY", "")),
             "DATABASE_URL": "set" if os.getenv("DATABASE_URL") else "not set",
             "FOUNDER_TOKEN": _redact(os.getenv("FOUNDER_TOKEN", "")),
+        },
+        "etsy": {
+            "status": "configured" if ext["etsy_configured"] else "not_configured",
+            "variables": ext,
         },
         "scheduler_enabled": os.getenv("ENABLE_SCHEDULER", "").lower() in ("1", "true", "yes"),
     }
