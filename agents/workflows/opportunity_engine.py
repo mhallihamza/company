@@ -236,23 +236,69 @@ def _dedupe_write(state: HQState) -> HQState:
 
 def _explain(state: HQState) -> HQState:
     try:
+        from agents.validation import validate_brief
+
         scored = (state.get("artifacts") or {}).get("scored", [])
         top = sorted(scored, key=lambda x: x["score"], reverse=True)[:5]
         if not top:
             return {"summary": "no candidates to explain",
                     "progress": state.get("progress", []) + ["EXPLAINED"]}
-        brief = ""
-        for o in top:
-            brief += (f"- {o.get('niche')}: score {o.get('score')} — "
-                      f"{(o.get('rationale') or '')[:80]}\n")
+
+        briefs: list[dict] = []
+        shortlist: list[dict] = []
+
+        for cand in top:
+            ev = {
+                **(cand.get("evidence_trends") or {}),
+                **(cand.get("evidence_competition") or {}),
+                "sub_scores": cand.get("sub_scores", {}),
+                "score": cand.get("score", 0.0),
+                "evidence_source": cand.get("source") or "demo",
+            }
+            brief_out = _write_brief(cand, ev, attempt=1)
+            if not brief_out["ok"]:
+                # one retry with explicit violations list
+                brief_out = _write_brief(cand, ev, attempt=2,
+                                         violations=brief_out.get("violations"))
+            if brief_out["ok"]:
+                shortlist.append({**cand, "brief": brief_out["brief"],
+                                  "status": "shortlisted"})
+            else:
+                briefs.append({**cand,
+                               "status": "rejected_by_validator",
+                               "violations": brief_out.get("violations")})
         return {"artifacts": {**state.get("artifacts", {}),
                               "top_candidates": top,
-                              "brief_for_llm": brief},
-                "summary": f"scored {len(scored)} candidates; top: {top[0]['niche'] if top else 'none'}",
+                              "shortlisted": shortlist,
+                              "rejected_briefs": briefs},
+                "summary": f"explained {len(top)}; shortlisted {len(shortlist)}; rejected {len(briefs)}",
                 "progress": state.get("progress", []) + ["EXPLAINED", "ENGINE_DONE"]}
     except Exception as e:  # noqa: BLE001
         return {"error": f"Explain failed: {e}",
                 "progress": state.get("progress", []) + ["EXPLAINED"]}
+
+
+def _write_brief(cand: dict, evidence: dict, *, attempt: int = 1,
+                 violations: list[str] | None = None) -> dict:
+    """LLM that must cite evidence; on failure returns violations list for the retry."""
+    import json as _json
+    model = get_chat_model(temperature=0.3, max_tokens=800)
+    hints = f"The previous brief was rejected with violations: {violations}. Fix them strictly.\n" if violations else ""
+    sys = ("[ROLE:opportunity.briefing]\nYou are the founder's market analyst.\n"
+           "Write a shortlist brief TIGHTLY tied to the attached evidence.\n"
+           "Return ONLY JSON with keys: concept, title, tags (list), why_this_one (string), "
+           "cited_evidence (list of {field, value}).\n"
+           "Cited field names must match the evidence object exactly.\n"
+           "Numbers in why_this_one must appear in the evidence object.\n"
+           "Do NOT claim sales or revenue — evidence contains only favorites-style signals.\n"
+           "Output format: a JSON object only. No prose. No commentary.\n"
+           f"EVIDENCE: {_json.dumps(evidence, ensure_ascii=False)[:3500]}\n"
+           + hints)
+    raw = str(model.invoke([SystemMessage(content=sys),
+                            HumanMessage(content=f"brief: {cand.get('niche')}")]).content)
+    from agents.validation import validate_brief
+    out = validate_brief(raw, evidence)
+    return {"ok": out.ok, "violations": out.violations, "brief": out.brief}
 
 
 def _supervisor(state: HQState) -> HQState:

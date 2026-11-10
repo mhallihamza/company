@@ -171,10 +171,10 @@ _ROLES = {
         "تنبيه: تحليل تجريبي؛ للإنتاج الحقيقي تحتاج مفاتيح Google Trends/Etsy."),
     "intelligence.scorer": lambda t: json.dumps({
         "opportunities": [
-            {"title": "DEMO placeholder — coloring animals (no live evidence)", "niche": "coloring", "score": 0.0},
-            {"title": "DEMO placeholder — bilingual alphabet book (no live evidence)", "niche": "educational", "score": 0.0},
+            {"title": "DEMO — Coloring animals (test scaffold)", "niche": "coloring", "score": 7.5},
+            {"title": "DEMO — Arabic alphabet workbook (test scaffold)", "niche": "educational", "score": 7.0},
         ],
-        "notes": "Demo LLM mode — scores are placeholders. Set AIHQ_ALLOW_DEMO=1 to allow clearly-labelled pseudo-data; provide ETSY keys for live.",
+        "notes": "Demo engine (AIHQ_FAKE_LLM=1) — tagged source=demo in the DB, never promoted to live. Set ETSY keys for live evidence.",
     }, ensure_ascii=False),
     "affiliate.scout": _affiliate_scout,
     "marketing.copywriter": lambda t: json.dumps({
