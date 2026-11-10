@@ -51,6 +51,18 @@ _PG_DDL = [
         tokens_used INTEGER DEFAULT 0,
         detail      TEXT,
         workspace_id TEXT DEFAULT 'default')""",
+    """CREATE TABLE IF NOT EXISTS market_profiles (
+        profile_id   BIGSERIAL PRIMARY KEY,
+        country      TEXT NOT NULL,
+        language     TEXT NOT NULL,
+        currency     TEXT NOT NULL,
+        dir          TEXT DEFAULT 'ltr',
+        font         TEXT,
+        seeds        TEXT,                           -- JSON list of seed keywords
+        seasonal     TEXT,                           -- JSON seasonal calendar
+        enabled      BOOLEAN DEFAULT TRUE,
+        created_at   TIMESTAMPTZ DEFAULT now(),
+        UNIQUE(country, language))""",
     """CREATE TABLE IF NOT EXISTS opportunities (
         opportunity_id BIGSERIAL PRIMARY KEY,
         sector      TEXT NOT NULL,
@@ -103,6 +115,18 @@ _PG_DDL = [
         detail      TEXT,
         workspace_id TEXT DEFAULT 'default',
         created_at  TIMESTAMPTZ DEFAULT now())""",
+    """CREATE TABLE IF NOT EXISTS product_tests (
+        test_id      BIGSERIAL PRIMARY KEY,
+        opportunity_id BIGINT NOT NULL REFERENCES opportunities(opportunity_id),
+        channel       TEXT NOT NULL,
+        views         INTEGER DEFAULT 0,
+        favorites     INTEGER DEFAULT 0,
+        sales         INTEGER DEFAULT 0,
+        test_start    TIMESTAMPTZ,
+        test_end      TIMESTAMPTZ,
+        notes         TEXT,
+        workspace_id  TEXT DEFAULT 'default',
+        created_at    TIMESTAMPTZ DEFAULT now())""",
     """CREATE TABLE IF NOT EXISTS budgets (
         budget_id   BIGSERIAL PRIMARY KEY,
         workspace_id TEXT UNIQUE DEFAULT 'default',

@@ -20,11 +20,17 @@ log = logging.getLogger("ai-business-hq")
 async def lifespan(app: FastAPI):
     from agents import registry  # noqa: PLC0415
     from backend.app.db import get_store  # noqa: PLC0415
+    from backend.app.routers.profiles import seed as _seed_profiles  # noqa: PLC0415
     log.info("platform started — %d departments registered", len(registry.list_departments()))
     db = get_store()
     log.info("database: %s", db.backend_label)
     if db.pg_diag:
         log.warning("db diag: %s", db.pg_diag)
+    try:
+        _seed_profiles()
+        log.info("market profiles seeded (us-en, fr-fr, sa-ar)")
+    except Exception as e:  # noqa: BLE001
+        log.warning("profile seed failed: %s", e)
     _maybe_scheduler()
     yield
 
@@ -45,10 +51,10 @@ app.add_middleware(
 
 from backend.app.routers import (agents, approvals, books, capabilities, ceo,  # noqa: E402
                                  departments, health, observability, opportunities,
-                                 reports, settings)
+                                 profiles, reports, settings, tests)
 
 for mod in (health, ceo, departments, books, opportunities, approvals, reports,
-            settings, agents, observability, capabilities):
+            settings, agents, observability, capabilities, tests, profiles):
     app.include_router(mod.router, prefix="/api")
 
 
