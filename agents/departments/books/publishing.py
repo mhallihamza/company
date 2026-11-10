@@ -1,4 +1,4 @@
-"""books.publishing — بوابة صارمة: لا رفع إلا بموافقة بشرية صريحة."""
+"""books.publishing — hard gate: no external publish without founder approval."""
 from __future__ import annotations
 import json
 from pathlib import Path
@@ -6,8 +6,8 @@ from pathlib import Path
 from langgraph.graph import END, START, StateGraph
 
 from agents.common import HQState, ask_supervisor
-from agents.capabilities.marketplace import etsy_create_draft
-from backend.app.config import BOOKS_DIR
+from agents.capabilities.marketplace import etsy_create_draft, EtsyError
+from backend.app import config as cfg
 from backend.app.services import store as svc
 
 
@@ -27,21 +27,39 @@ def _etsy_publisher(state: HQState) -> HQState:
         return {"error": "No PDF ready — build the book first",
                 "progress": progress + ["FAILED publish"]}
 
-    story_file = BOOKS_DIR / slug / "story.json"
+    story_file = cfg.BOOKS_DIR / slug / "story.json"
     try:
         story = json.loads(story_file.read_text(encoding="utf-8"))
-        lid, is_mock = etsy_create_draft(
-            story.get("etsy", {}), product["pdf_path"],
-            product.get("cover_path") or str(BOOKS_DIR / slug / "p0_cover.png"))
-        svc.upsert_product(slug, story.get("title", slug), status="published",
+        meta = {"title": story.get("etsy", {}).get("title", story.get("title", slug)),
+                "description": story.get("etsy", {}).get("description", ""),
+                "tags": (story.get("etsy") or {}).get("tags", []) or []}
+        price = product.get("price_usd")
+        if price is None:
+            price = cfg.DEFAULT_BOOK_PRICE_USD
+        outcome = etsy_create_draft(meta, product["pdf_path"],
+                                    product.get("cover_path") or str(cfg.BOOKS_DIR / slug / "p0_cover.png"),
+                                    price=price)
+        svc.upsert_product(slug, product.get("title", slug),
+                           status="draft_created",
+                           pdf_path=product["pdf_path"],
+                           cover_path=product.get("cover_path"),
                            final_file=product["pdf_path"])
-        label = "MOCK draft" if is_mock else "Real draft"
-        return {"summary": f"{label} رقم {lid}",
-                "artifacts": {"listing_id": lid, "mock": is_mock},
+        return {"summary": f"Etsy draft created — listing {outcome.get('listing_id')}",
+                "artifacts": {"listing_id": outcome.get("listing_id"),
+                              "shop_id": outcome.get("shop_id")},
                 "progress": progress + [f"PUBLISH_DONE {slug}"]}
+    except EtsyError as e:
+        svc.upsert_product(slug, product.get("title", slug), status="draft_failed",
+                           pdf_path=product.get("pdf_path"),
+                           cover_path=product.get("cover_path"))
+        return {"error": f"Etsy draft failed: {e}",
+                "progress": progress + [f"FAILED publish {slug}"]}
     except Exception as e:  # noqa: BLE001
-        return {"error": f"Etsy upload failed: {e}",
-                "progress": progress + ["FAILED publish"]}
+        svc.upsert_product(slug, product.get("title", slug), status="draft_failed",
+                           pdf_path=product.get("pdf_path"),
+                           cover_path=product.get("cover_path"))
+        return {"error": f"Publishing failed: {e}",
+                "progress": progress + [f"FAILED publish {slug}"]}
 
 
 def _supervisor(state: HQState) -> HQState:
@@ -88,7 +106,7 @@ from agents.registry import AgentSpec, DepartmentSpec, register
 register(DepartmentSpec(
     key="books.publishing", sector="books",
     title_ar="الكتب — مشرف النشر", title_en="Books — Publishing Supervisor",
-    description_ar="يرفع ملف الكتاب كمسودة على Etsy بعد موافقة بشرية صريحة",
+    description_ar="ينفذ رفع ملف الكتاب كمسودة على Etsy بعد موافقة بشرية صريحة",
     description_en='Etsy draft after your explicit approval (human-gated)',
     capabilities=["etsy_draft_listing"],
     allowed_tools=["etsy"],

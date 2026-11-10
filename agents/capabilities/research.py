@@ -71,27 +71,24 @@ def _mock_trends(keywords: list[str], source: str) -> dict[str, Any]:
 
 
 def etsy_competition_public(term: str) -> dict[str, Any]:
-    """Etsy competition: REAL API when ETSY_API_KEY exists, deterministic demo otherwise."""
-    key = os.getenv("ETSY_API_KEY", "")
+    """Etsy competition: live API with ETSY_KEYSTRING, explicit partial+error otherwise."""
+    key = os.getenv("ETSY_KEYSTRING") or os.getenv("ETSY_API_KEY", "")
     if key:
         from agents.capabilities.marketplace import etsy_active_listings
         data = etsy_active_listings([term])
         found = (data.get("keywords") or {}).get(term) or {}
         if "error" in found:
-            return {"source": "etsy_api_v3", "query": term,
-                    "results": _demo_bucket(term)["results"],
-                    "competition": _demo_bucket(term)["competition"],
-                    "error": found["error"]}
+            # do NOT pretend we know the answer — surface live-side failure as `partial`
+            return {"source": "partial", "query": term, "error": found["error"]}
         return {"source": "etsy_api_v3", "query": term,
                 "results": found.get("total_listings"),
                 "competition": _bucket(int(found.get("total_listings") or 0)),
                 "avg_favorers_top25": found.get("avg_favorers_top25"),
                 "avg_price_top25": found.get("avg_price_top25")}
 
-    seed = int(hashlib.md5(term.encode()).hexdigest(), 16)  # noqa: S324
-    count = 30 + seed % 900
-    return {"source": "demo", "query": term, "results": count,
-            "competition": _bucket(count)}
+    # no credentials — never invent competition numbers, even as a stub.
+    return {"source": "demo", "query": term, "results": None,
+            "competition": None}
 
 
 def _bucket(count: int) -> str:

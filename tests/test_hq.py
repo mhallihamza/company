@@ -79,15 +79,17 @@ def test_books_pipeline_with_publish_gate(tmp_env):
     assert r.status_code == 200
     assert svc.get_approval(aid)["status"] == "rejected"
 
-    # طلب جديد ثم قبول — ينتج MOCK
+    # طلب جديد ثم قبول — بلا ETSY_* لا يجوز التسمية "published"؛ يظهر خطأ حقيقي
     aid = client.post(f"/api/books/{slug}/publish-request",
                       json={"slug": slug, "note": "مرة أخرى"},
                       headers={"Authorization": f"Bearer {os.environ['FOUNDER_TOKEN']}"}).json()["approval_id"]
     r = client.post(f"/api/approvals/{aid}/decide",
                     json={"decision": "approve", "note": "تم"},
                     headers={"Authorization": f"Bearer {os.environ['FOUNDER_TOKEN']}"})
-    assert r.status_code == 200, r.text
-    assert str(r.json().get("listing_id", "")).startswith("MOCK")
+    assert r.status_code in (502, 422), r.text
+    book = svc.get_product(slug)
+    assert book["status"] in ("story", "images", "pdf", "qa", "draft_failed"), book
+    assert book["status"] != "published"
 
 
 # ---------------- حساب حتمي للعمولة ----------------

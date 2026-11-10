@@ -22,6 +22,8 @@ ARABIC_FONT = ROOT / "fonts" / "Amiri-Regular.ttf"
 DB_BACKEND = os.getenv("DB_BACKEND", "auto")          # auto | supabase | sqlite
 DATABASE_URL = os.getenv("DATABASE_URL", "")
 SQLITE_PATH = DATA_DIR / "hq.db"
+# Sane fallback only — overridden per book via `products.price_usd`
+DEFAULT_BOOK_PRICE_USD = float(os.getenv("DEFAULT_BOOK_PRICE_USD", "4.99") or 4.99)
 
 FEATURE_SCHEDULER = os.getenv("ENABLE_SCHEDULER", "").lower() in ("1", "true", "yes")
 

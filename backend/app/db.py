@@ -69,6 +69,7 @@ _PG_DDL = [
         pdf_path    TEXT,
         cover_path  TEXT,
         final_file  TEXT,
+        price_usd   REAL DEFAULT 4.99,
         publish_targets TEXT DEFAULT '[\"etsy\",\"kdp_paperback\",\"kdp_ebook\"]',
         workspace_id TEXT DEFAULT 'default',
         created_at  TIMESTAMPTZ DEFAULT now(),
@@ -164,14 +165,18 @@ class Store:
         with _lock:
             ddl = _PG_DDL if self.kind == "pg" else _SQLITE_DDL
             try:
-                # ترحيل آمن للأعمدة الجديدة (دون كسر الجداول القديمة)
+                # safe migrations for new columns (won't touch existing tables)
                 if self.kind == "pg":
                     self._conn.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS publish_targets TEXT")
+                    self._conn.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS price_usd REAL DEFAULT 4.99")
                 else:
-                    if not any(r[1] == "publish_targets" for r in
-                              self._conn.execute("PRAGMA table_info(products)").fetchall()):
-                        self._conn.execute("ALTER TABLE products ADD COLUMN publish_targets TEXT")
-            except Exception:  # noqa: BLE001 — ok if already present
+                    have = {r[1] for r in
+                            self._conn.execute("PRAGMA table_info(products)").fetchall()}
+                    if "publish_targets" not in have:
+                        self._conn.execute("ALTER TABLE products ADD COLUMN publish_targets TEXT DEFAULT '[\"etsy\",\"kdp_paperback\",\"kdp_ebook\"]'")
+                    if "price_usd" not in have:
+                        self._conn.execute("ALTER TABLE products ADD COLUMN price_usd REAL DEFAULT 4.99")
+            except Exception:  # noqa: BLE001 — column may already exist
                 pass
             if self.kind == "pg":
                 for stmt in ddl:
