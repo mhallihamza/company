@@ -33,3 +33,10 @@ out/
 # ===== OS =====
 Thumbs.db
 .DS_Store
+
+# user-generated output (never tracked)
+storage/books/
+storage/reports/
+*.pdf
+*.epub
+data/*.db

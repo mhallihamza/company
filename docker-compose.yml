@@ -7,8 +7,30 @@ services:
     container_name: hq-backend
     ports:
       - "8700:8700"
-    env_file:
-      - .env
+    environment:
+      # Pass the full env set explicitly — needs to reach the container
+      - FOUNDER_TOKEN
+      - DATABASE_URL
+      - DB_BACKEND
+      - MISTRAL_API_KEY
+      - ANTHROPIC_API_KEY
+      - OPENAI_API_KEY
+      - LLM_PROVIDER
+      - LLM_MODEL
+      - KIDBOOK_FAKE_LLM
+      - AIHQ_FAKE_LLM
+      - AIHQ_ALLOW_DEMO
+      - ENABLE_SCHEDULER
+      - TZ
+      - CORS_ORIGINS
+      - ETSY_API_KEY
+      - ETSY_ACCESS_TOKEN
+      - ETSY_SHOP_ID
+      - ETSY_TAXONOMY_ID
+      - ETSY_KEYSTRING
+      - ETSY_SHARED_SECRET
+      - ETSY_REFRESH_TOKEN
+      - DEFAULT_BOOK_PRICE_USD
     volumes:
       - ./storage:/app/storage
       - ./data:/app/data
@@ -18,17 +40,20 @@ services:
     build:
       context: .
       dockerfile: frontend/Dockerfile
-      args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8700}
     image: ai-business-hq-frontend:latest
     container_name: hq-frontend
     ports:
       - "3000:3000"
+    environment:
+      # Same here if you ever serve behind HTTPS with a different origin
+      - NEXT_PUBLIC_API_URL=http://localhost:8700
     depends_on:
       - backend
     restart: unless-stopped
 
-  # اختياري — Redis لاحقاً لعامل/طابور حقيقي (Phase التالية)
-  # redis:
-  #   image: redis:7-alpine
-  #   ports: ["6379:6379"]
+  # re-discoveries or long jobs planned for a worker — fill in once background tasks are production-ready
+  # scheduler:
+  #   build: { context: ., dockerfile: backend/Dockerfile }
+  #   command: ["python", "-c", "import agents.workflows.daily_research as dr; dr.run()"]
+  #   environment: [ ... same as backend ... ]
+  #   schedule: daily

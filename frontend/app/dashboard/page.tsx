@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Shell, { Spinner, ErrorBox } from "@/components/Shell";
 import { useLang } from "@/lib/lang";
-import { api, type Health, type Approval, type AuditEntry } from "@/lib/api";
+import { api, type AdminHealth, type Approval, type AuditEntry } from "@/lib/api";
 
 function Kpi({ label, value, hint, tone = "" }: { label: string; value: React.ReactNode; hint?: string; tone?: string }) {
   return (
@@ -17,7 +17,7 @@ function Kpi({ label, value, hint, tone = "" }: { label: string; value: React.Re
 
 export default function Dashboard() {
   const { t } = useLang();
-  const [health, setHealth] = useState<Health | null>(null);
+  const [health, setHealth] = useState<AdminHealth | null>(null);
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +27,7 @@ export default function Dashboard() {
     (async () => {
       try {
         const [h, a, au] = await Promise.all([
-          api.health(),
+          api.adminHealth(),
           api.approvals("pending").catch(() => [] as Approval[]),
           api.audit(8).catch(() => [] as AuditEntry[]),
         ]);

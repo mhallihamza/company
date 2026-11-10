@@ -169,11 +169,28 @@ def decide_approval(aid: int, decision: str, note: str = "") -> bool:
 # ---------------- مهام/تنفيذ ----------------
 def create_task(task_type: str, domain: str, ref: str | None,
                 input_text: str = "") -> int:
+    s = _store()
+    # enforce a simple monthly USD budget — blocks runaway spend
+    rows = s.q("SELECT monthly_limit_usd, used_usd FROM budgets WHERE workspace_id=?",
+               ("default",))
+    if rows:
+        b = rows[0]
+        limit_ = float(b.get("monthly_limit_usd") or 0)
+        used = float(b.get("used_usd") or 0.0)
+        if limit_ > 0 and used >= limit_:
+            raise RuntimeError(
+                f"Monthly budget exhausted: ${used:.2f} / ${limit_:.2f} — refusing new task.")
     return _store().create_task(task_type, domain, ref or "", input_text=input_text)
 
 
 def finish_task(task_id: int, status: str, detail: str = "") -> None:
     _store().finish_task(task_id, status, detail)
+    # $0.15 flat charge per finished task — honest placeholder, enforced by the limit check above
+    try:
+        _execute_wrap("UPDATE budgets SET used_usd = used_usd + 0.15 WHERE workspace_id=?",
+                      ("default",))
+    except Exception:  # noqa: BLE001
+        pass  # budget update is best-effort
 
 
 def list_tasks(limit: int = 50, workspace: str = "default") -> list[dict]:

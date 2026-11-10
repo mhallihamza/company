@@ -2,8 +2,10 @@
 
 export type Health = {
   ok: boolean; version?: string; db_backend?: string; db_diag?: string;
-  llm_mode?: string; counts?: Record<string, number>; storage?: string;
+  llm_mode?: string; counts?: Record<string, number>;
 };
+
+export type AdminHealth = Health;
 export type AgentCard = {
   agent: string; role: string; tier: "reasoning" | "fast" | "deterministic" | string;
   tools: string[]; version: string;
@@ -112,7 +114,8 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   base: BASE,
-  health: () => req<Health>("/api/health"),
+  health: () => req<{ status: string }>("/api/health"),
+  adminHealth: () => req<AdminHealth>("/api/admin/health"),
   ceoRun: (task: string, human_confirmed = false) =>
     req<CeoOut>("/api/ceo/run", { method: "POST", body: JSON.stringify({ task, human_confirmed }) }),
   departments: () => req<Department[]>("/api/departments"),

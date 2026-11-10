@@ -21,23 +21,34 @@ from backend.app import db as _db
 from backend.app.services import store as svc
 
 
-# ---------------- التوجيه ----------------
+_WORD = re.compile(r"\b[\w\u0600-\u06FF]+\b", re.UNICODE)
+
+
 def _keyword_pick(text: str) -> str | None:
-    rules = [("affiliate", ("affiliate", "عمولة", "تابع", "commission")),
-             ("qa", ("qa", "جودة", "فحص", "امتثال", "preflight")),
-             ("finance", ("finance", "رسوم", "هامش", "ربح", "ربحية", "عائد", "تكلفة",
-                          "margin", "profit", "usd", "price", "pricing", "سعر")),
-             ("marketing", ("marketing", "تسويق", "seo", "pinterest")),
-             ("intelligence", ("intelligence", "فرصة", "فرص", "opportunity", "مسح")),
-             ("books.market", ("trend", "السوق", "سوق", "market", "منافس")),
-             ("books.publishing", ("publish", "انشر", "نشر", "ارفع", "رفع", "etsy")),
-             ("books.content", ("قصة", "كتاب", "story", "content", "اكتب")),
-             ("product", ("product", "مرشح منتج", "candidate"))]
-    low = text.lower()
-    for domain, keys in rules:
-        if any(k in low for k in keys):
-            return domain
-    return None
+    rules = [
+        ("affiliate", ("affiliate", "عمولة", "بالعمولة", "لعمولة", "commission")),
+        ("qa",         ("qa", "quality", "inspection", "جودة", "فحص", "امتثال", "preflight")),
+        ("finance",    ("finance", "رسوم", "هامش", "ربح", "ربحية", "عائد", "تكلفة",
+                        "margin", "profit", "usd", "price", "pricing", "سعر")),
+        ("marketing",  ("marketing", "seo", "pinterest", "تسويق")),
+        ("intelligence", ("intelligence", "فرص", "فرصة", "opportunity")),
+        ("books.market", ("trend", "market", "منافس", "السوق", "سوق")),
+        ("books.publishing", ("publish", "etsy", "kdp", "etsy", "انشر", "نشر")),
+        ("books.content", ("story", "content", "قصة", "حكاية", "اكتب", "ألف")),
+        ("product",     ("product", "candidate", "مرشح")),
+    ]
+    words = _WORD.findall(text.lower())
+    word_set = set(words)
+    # max keyword length wins; tie-breaker = domain specificity (affiliate > qa > finance > …)
+    best: tuple[int, int, str] | None = None
+    for rank, (domain, keys) in enumerate(rules):
+        hits = [k.lower() for k in keys if k.lower() in word_set]
+        if hits:
+            key_len = max(len(h) for h in hits)
+            candidate = (key_len, -rank, domain)
+            if best is None or candidate > best:
+                best = candidate
+    return best[2] if best else None
 
 
 def route_task(task: str) -> str:

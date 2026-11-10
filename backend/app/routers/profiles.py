@@ -1,15 +1,11 @@
-"""market_profiles — multi-market seed + listing.
+"""market_profiles — multi-market seed + listing (Phase 5).
 
-مرحلة الخامسة — تحديد استباقي لثلاثة أسواق:
-  - us-en  : أكبر سوق، English, USD, موسم العودة للمدرسة + أعياد مسيحية
-  - fr-fr  : ثاني أكبر سوق فرنكوفوني، EUR, موسم "rentrée scolaire"
-  - sa-ar  : العربية + RTL + خطوط Amiri، موسم رمضان وعيد الفطر والأضحى
-
-أي توسعة (مثلاً ar-gulf-en) = Insert صف + مسارات اللغة تلتقطه تلقائياً.
+Three starter profiles are seeded on boot if missing. Each entry is a country+language
+combination with currency, text direction, font, seed keywords, and a simple seasonal
+table. Enable/disable is toggled via the UI — never by code change.
 """
 from __future__ import annotations
 import json
-import os
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -25,46 +21,14 @@ class ProfileCreateIn(BaseModel):
     language: str = Field(..., min_length=2, max_length=5)
     currency: str = Field(..., min_length=3, max_length=3)
     dir: str = Field("ltr", pattern="^(ltr|rtl)$")
-    font: str = Field("Amiri", max_length=60)
+    font: str = Field("DejaVu Serif", max_length=60)
     seeds: list[str] = Field(default_factory=list)
     seasonal: dict = Field(default_factory=dict)
     enabled: bool = True
 
 
-def seed():
-    """Idempotent — inserts the three seed profiles if they're not already present."""
-    s = get_store()
-    _ensure_table()
-    seeds = [
-        ("US", "en", "USD", "ltr", "DejaVu Serif",
-         ["back to school", "summer reading", "coloring animals", "activity book"],
-         {"back_to_school": "August–September", "christmas": "December", "easter": "March–April"}),
-        ("FR", "fr", "EUR", "ltr", "DejaVu Serif",
-         ["rentrée scolaire", "cahier activités", "coloriage animaux", "livre enfants"],
-         {"rentrée": "September", "noël": "December", "pâques": "March–April"}),
-        ("SA", "ar", "SAR", "rtl", "Amiri",
-         ["قصص قبل النوم", "عيد الفطر", "عيد الأضحى", "أبجدية عربية", "رمضان"],
-         {"ramadan": "March–April", "eid_fitr": "March–April", "eid_adha": "May–June",
-          "back_to_school": "September"}),
-    ]
-    s._ensure_schema()                 # noqa: SLF001
-    ph = "%s" if s.kind == "pg" else "?"
-    ins = f"""INSERT INTO market_profiles
-                (country, language, currency, dir, font, seeds, seasonal)
-                VALUES ({ph},{ph},{ph},{ph},{ph},{ph},{ph})
-                ON CONFLICT (country, language) DO NOTHING"""
-    for row in seeds:
-        country, lang, currency, direction, font, seeds, seasonal = row
-        with s._cur() as cur:  # noqa: SLF001
-            cur.execute(ins, (country, lang, currency, direction, font,
-                              json.dumps(seeds, ensure_ascii=False),
-                              json.dumps(seasonal, ensure_ascii=False)))
-
-
 def _ensure_table():
     s = get_store()
-    s._ensure_schema()                # ensure all tables exist
-    # add explicit migration if market_profiles was missed on existing DBs
     if s.kind == "pg":
         s._conn.execute("""CREATE TABLE IF NOT EXISTS market_profiles (
             profile_id BIGSERIAL PRIMARY KEY,
@@ -94,6 +58,40 @@ def _ensure_table():
         s._conn.commit()
 
 
+def seed():
+    """Insert the three starter profiles — idempotent, safe to call at every boot."""
+    _ensure_table()
+    s = get_store()
+    seeds = [
+        ("US", "en", "USD", "ltr", "DejaVu Serif",
+         ["back to school", "summer reading", "coloring animals", "activity book"],
+         {"back_to_school": "August–September",
+          "christmas": "December",
+          "easter": "March–April"}),
+        ("FR", "fr", "EUR", "ltr", "DejaVu Serif",
+         ["rentrée scolaire", "cahier activités", "coloriage animaux", "livre enfants"],
+         {"rentrée": "September",
+          "noël": "December",
+          "pâques": "March–April"}),
+        ("SA", "ar", "SAR", "rtl", "Amiri",
+         ["قصص قبل النوم", "عيد الفطر", "عيد الأضحى", "أبجدية عربية", "رمضان"],
+         {"ramadan": "March–April",
+          "eid_fitr": "March–April",
+          "eid_adha": "May–June",
+          "back_to_school": "September"}),
+    ]
+    ph = "%s" if s.kind == "pg" else "?"
+    sql = f"""INSERT INTO market_profiles
+               (country, language, currency, dir, font, seeds, seasonal)
+               VALUES ({ph},{ph},{ph},{ph},{ph},{ph},{ph})
+               ON CONFLICT (country, language) DO NOTHING"""
+    for country, lang, currency, direction, font, seeds_list, seasonal in seeds:
+        with s._cur() as cur:  # noqa: SLF001
+            cur.execute(sql, (country, lang, currency, direction, font,
+                              json.dumps(seeds_list, ensure_ascii=False),
+                              json.dumps(seasonal, ensure_ascii=False)))
+
+
 @router.get("/profiles")
 def list_profiles():
     seed()
@@ -107,8 +105,9 @@ def create_profile(body: ProfileCreateIn):
     seed()
     s = get_store()
     ph = "%s" if s.kind == "pg" else "?"
-    ins = f"""INSERT INTO market_profiles (country, language, currency, dir, font, seeds, seasonal)
-                VALUES ({ph},{ph},{ph},{ph},{ph},{ph},{ph}) RETURNING profile_id"""
+    ins = f"""INSERT INTO market_profiles
+              (country, language, currency, dir, font, seeds, seasonal)
+              VALUES ({ph},{ph},{ph},{ph},{ph},{ph},{ph}) RETURNING profile_id"""
     with s._cur() as cur:                 # noqa: SLF001
         cur.execute(ins, (body.country.upper(), body.language.lower(),
                           body.currency.upper(), body.dir, body.font,
@@ -122,7 +121,6 @@ def create_profile(body: ProfileCreateIn):
 @router.patch("/profiles/{profile_id}/toggle")
 def toggle_profile(profile_id: int):
     s = get_store()
-    ph = "%s" if s.kind == "pg" else "?"
     s._execute("UPDATE market_profiles SET enabled = NOT enabled WHERE profile_id=?",
                (profile_id,))
     return {"ok": True}

@@ -64,21 +64,38 @@ def _role(messages: List[BaseMessage]) -> str:
     return "general"
 
 
+"""CEO orchestrator routing rules — word-boundary matching only."""
+import re as _re
+
+_WORD = _re.compile(r"\b[\w\u0600-\u06FF]+\b", _re.UNICODE)
+
+
 def _orch(text: str) -> str:
-    low = text.lower()
+    words = set(_re.findall(_WORD, text.lower()))
     rules = [
-        ("affiliate", ("affiliate", "عمولة", "تابع", "commission")),
-        ("qa", ("qa", "جودة", "فحص", "امتثال", "preflight")),
-        ("finance", ("finance", "رسوم", "هامش", "ربح", "ربحية", "عائد", "تكلفة",
-                     "margin", "profit", "usd", "price", "pricing", "سعر")),
-        ("marketing", ("marketing", "تسويق", "seo", "pinterest", "كلمات مفتاحية")),
-        ("intelligence", ("intelligence", "فرصة", "فرص", "opportunity", "مسح")),
-        ("books.market", ("trend", "السوق", "سوق", "تحليل سوق", "market", "منافس")),
-        ("books.publishing", ("publish", "انشر", "نشر", "ارفع", "رفع", "etsy", "kdp")),
+        ("affiliate", ("affiliate", "عمولة", "بالعمولة", "لعمولة", "commission")),
+        ("qa",         ("qa", "quality", "inspection", "جودة", "فحص", "امتثال", "preflight")),
+        ("finance",    ("finance", "رسوم", "هامش", "ربح", "ربحية", "عائد", "تكلفة",
+                        "margin", "profit", "usd", "price", "pricing", "سعر")),
+        ("marketing",  ("marketing", "تسويق", "seo", "pinterest", "كلمات مفتاحية")),
+        ("intelligence", ("intelligence", "فرصة", "فرص", "opportunity")),
+        ("books.market", ("trend", "market", "منافس", "السوق", "سوق", "niche")),
+        ("books.publishing", ("publish", "etsy", "kdp", "انشر", "نشر")),
+        ("books.content", ("story", "content", "قصة", "حكاية", "اكتب", "ألف")),
+        ("books.product",  ("product", "candidate", "مرشح")),
     ]
-    for domain, words in rules:
-        if any(w in low for w in words):
-            return json.dumps({"domain": domain}, ensure_ascii=False)
+    best: tuple[int, int, str] | None = None    # (matches_weight, specificity_rank, domain)
+    for rank, (domain, keys) in enumerate(rules):
+        hits = [k.lower() for k in keys if k.lower() in words]
+        if hits:
+            score = max(len(h) for h in hits)
+            # specificity: lower rank wins on tie — affiliate > qa > finance > ...
+            score = (score, -rank)
+            key = (score[0], score[1])
+            if best is None or key > (best[0], best[1]):
+                best = (score[0], score[1], domain)
+    if best:
+        return json.dumps({"domain": best[2]}, ensure_ascii=False)
     return json.dumps({"domain": "books.content"}, ensure_ascii=False)
 
 

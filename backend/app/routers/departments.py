@@ -13,7 +13,7 @@ router = APIRouter(tags=["departments"], dependencies=[Depends(require_founder)]
 
 class RunIn(BaseModel):
     task: str = Field("", max_length=2000)
-    human_confirmed: bool = False
+    human_confirmed: bool = False   # kept for Wire compatibility — never trusted
 
 
 @router.get("/departments")
@@ -39,7 +39,8 @@ def run_dept(key: str, body: RunIn):
     exec_id = svc.create_execution(task_id, key)
     kwargs = {"task": body.task or "", "task_id": task_id}
     if spec.approval_policy == "human_required":
-        kwargs["human_confirmed"] = body.human_confirmed
+        ref = (body.task or key).split()[-1] if body.task else key
+        kwargs["human_confirmed"] = _approved_ref_exists(ref)
     try:
         out = spec.run(**kwargs)
     except Exception as e:  # noqa: BLE001
@@ -57,9 +58,20 @@ def run_dept(key: str, body: RunIn):
 
 @router.get("/tasks")
 def tasks(limit: int = 50):
+    limit = max(1, min(int(limit), 200))
     return svc.list_tasks(limit=limit)
 
 
 @router.get("/executions")
 def executions(limit: int = 50):
+    limit = max(1, min(int(limit), 200))
     return svc.list_executions(limit=limit)
+
+
+def _approved_ref_exists(ref: str) -> bool:
+    """Only trust an approval record that actually exists and is approved (server-side check)."""
+    try:
+        rows = svc.list_approvals(status="approved", limit=100)
+        return any((str(r.get("ref", "")) == ref) for r in rows)
+    except Exception:  # noqa: BLE001
+        return False

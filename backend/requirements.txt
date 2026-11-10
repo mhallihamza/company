@@ -1,24 +1,20 @@
-# AI Business HQ — اعتماديات الباكند (Python 3.13)
-fastapi>=0.115
-uvicorn[standard]>=0.30
-
-# تنسيق الذكاء (LangGraph + LangChain)
-langgraph>=0.2
-langchain-core>=1.0
-langchain-mistralai>=0.2
-langchain-anthropic>=0.3
-langchain-openai>=0.3
-
-# قاعدة البيانات — Supabase/Postgres مع سقوط تلقائي لـ SQLite
-psycopg[binary]>=3.2
-
-# البحث والملفات
-requests>=2.32
-pytrends>=4.9
-python-dotenv>=1.0
-pillow>=10.4
-reportlab>=4.2
-
-# المجدول الاختياري (ENABLE_SCHEDULER=1)
-apscheduler>=3.10
-pydantic>=2.7
+# AI Business HQ — canonical dependency list (pinned to tested versions)
+# If you change a version, update from the matching package's release notes and re-verify
+fastapi==0.162.2
+uvicorn[standard]==0.54.0
+# orchestration / reasoning layer
+langgraph==1.2.20
+langchain-core==1.7.6
+langchain-mistralai==1.1.6
+langchain-anthropic==1.7.10
+langchain-openai==1.7.4
+# storage
+psycopg[binary]==3.3.8
+# research / scraping (best-effort for unofficial endpoints)
+requests==2.34.2
+pytrends==4.9.2
+python-dotenv==1.2.4
+pillow==13.0.0
+reportlab==5.1.0
+apscheduler==3.11.0
+pydantic==2.14.3

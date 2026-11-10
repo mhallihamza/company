@@ -1,21 +1,27 @@
-"""المسار الصحي — مفتوح بلا رمز."""
-from fastapi import APIRouter
+"""المسار الصحي — مفتوح بلا رمز. يكشف فقط {ok:true}؛ لا host/user/DSN."""
+from fastapi import APIRouter, Depends
 
-from backend.app import config
-from backend.app.db import get_store
-from backend.app.services.store import counts
-from agents.llm import mode_label
+from backend.app.auth import require_founder
 
 router = APIRouter(tags=["health"])
 
 
 @router.get("/health")
 def health():
+    return {"status": "ok"}
+
+
+@router.get("/admin/health")
+def admin_health(_: str = Depends(require_founder)):
+    """كامل التفاصيل — للمالك/الأدمن فقط، لا تكشف بدون الرمز."""
+    from backend.app.db import get_store
+    from backend.app.services.store import counts
+    from agents.llm import mode_label
+
     store = get_store()
-    return {"ok": True,
-            "version": "3.0.0",
-            "db_backend": store.backend_label,
-            "db_diag": store.pg_diag,
-            "llm_mode": mode_label(),
-            "storage": str(config.STORAGE),
-            "counts": counts()}
+    return {
+        "ok": True, "version": "3.1.0",
+        "db_backend": store.backend_label,
+        "llm_mode": mode_label(),
+        "counts": counts(),
+    }
