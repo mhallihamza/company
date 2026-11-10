@@ -1,49 +1,54 @@
 # AI Business HQ — an AI company operating system
 
-> **Not a KidBook Agent.** AI Business HQ is the founder's control plane for an AI-run business:
-> one **CEO agent** (LangGraph orchestrator) that understands your goals, **delegates to registered
-> departments**, tracks execution, and comes back with a report — asking **your** sign-off before any
-> external effect.
+> **AI Business HQ is the founder's control plane for an AI-run business:**
+> one **CEO agent** (LangGraph orchestrator) that understands goals,
+> **delegates to registered departments**, tracks execution, and returns
+> a report — asking **your** sign-off before any external effect.
 
-The UI is English-first with Arabic one click away (sidebar top → `AR — العربية`).
+The UI is English-first with Arabic one click away (top-right → `AR — العربية`).
 
 ## Architecture
 
 ```
 ┌───────────────────────────────────────────────────────────────┐
-│  Founder — you (define goals, approve/reject, pay the bills)  │
+│  Founder — you (goals, reports, approvals)                   │
 └───────────────────────┬───────────────────────────────────────┘
                         │
 ┌───────────────────────▼───────────────────────────────────────┐
 │  Frontend — Next.js 15 (TypeScript + Tailwind, App Router)    │
-│  /dashboard · /ceo · /departments · /agents · /capabilities   │
-│  /books · /products · /opportunities · /approvals             │
-│  /reports · /observability · /settings  · EN (default) + AR   │
+│  /dashboard · /ceo · /departments · /agents                   │
+│  /capabilities · /books · /profiles · /products               │
+│  /opportunities · /approvals · /reports                       │
+│  /observability · /settings  — EN default + AR toggle         │
 └───────────────────────┬───────────────────────────────────────┘
                         │ fetch (Bearer FOUNDER_TOKEN)
 ┌───────────────────────▼───────────────────────────────────────┐
 │  Backend — FastAPI (the API gateway, port 8700)               │
-│  /api/health /ceo/run /departments /agents /capabilities      │
-│  /observability /books /opportunities /approvals /reports     │
-│  /settings /audit /tasks — bearer auth, CORS for :3000       │
+│  /api/health (public {status:"ok"})  /api/admin/health        │
+│  /api/ceo/run /api/departments /api/agents /api/capabilities  │
+│  /api/observability /api/tests /api/profiles /api/books      │
+│  /api/opportunities /api/approvals /api/reports /api/settings │
+│  bearer auth, CORS for :3000                                  │
 └───────────────────────┬───────────────────────────────────────┘
                         │
 ┌───────────────────────▼───────────────────────────────────────┐
-│  Agents — LangGraph (agents/ directory, separate from backend)│
+│  Agents — LangGraph (agents/ — separate from the API)         │
 │                                                               │
-│                    🤵 CEO (agents/ceo/graph.py)                │
-│       ┌───────┬───────┬───────┬───────┬───────┐               │
-│  Books  Intel.  Affil.  Market.  Finance  QA …                 │
+│                   🤵 CEO (agents/ceo/graph.py)                 │
+│       ┌───────┬────────┬──────────┬────────┬───┐               │
+│  Books  Intel.  Affiliate  Marketing Finance  QA …             │
 │                                                               │
-│  Each department = supervisor graph + its own agents            │
-│  Capabilities (agents/capabilities/) shared by all departments │
-│  Registry (agents/registry.py) — plug-and-play departments      │
+│  Departments = supervisor subgraphs with their own agents     │
+│  Capabilities (agents/capabilities/) — shared services        │
+│  Registry (agents/registry.py) — plug-and-play departments    │
+│  Fees (agents/fees/) — verified Etsy/KDP formulas             │
 └───────────────────────┬───────────────────────────────────────┘
                         │
 ┌───────────────────────▼───────────────────────────────────────┐
-│  Data — Supabase Postgres (auto) → SQLite local fallback       │
-│  tasks · task_executions · opportunities · products           │
-│  reports · approvals · audit_logs · budgets · settings         │
+│  Data — Supabase Postgres (auto) → SQLite fallback            │
+│  tasks · executions · opportunities · products                 │
+│  reports · approvals · audit_logs · budgets                    │
+│  settings · product_tests · market_profiles                   │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -52,30 +57,32 @@ The UI is English-first with Arabic one click away (sidebar top → `AR — ال
 ```
 ai-business-hq/
 ├── frontend/            Next.js 15 (TypeScript + Tailwind) — EN default + AR toggle
-├── backend/             FastAPI: app/routers/*, app/services/*, app/db.py
+├── backend/             FastAPI: app/routers/* · app/services/* · app/db.py
 │   ├── Dockerfile
-│   └── requirements.txt
-├── agents/              LangGraph — CEO + departments + capabilities
+│   ├── requirements.txt (pinned)
+│   └── requirements-dev.txt
+├── agents/              LangGraph — CEO + departments + capabilities + fees
 │   ├── ceo/             CEO graph (plan → route → execute → evaluate → close)
 │   ├── departments/     books/ market_intel/ affiliate/ marketing/ finance/ qa/ product/ design/
 │   ├── capabilities/    web_research · content_generation · image_generation · pdf_generation
 │   │                    marketplace_listings · opportunity_scoring · unit_economics · qa_checks
-│   ├── workflows/       daily_research · opportunity_validation · product_creation · publishing
+│   ├── fees/            etsy.py · kdp.py — verified (source_url + last_reviewed)
+│   ├── workflows/       opportunity_engine.py · daily_research.py · publishing.py
 │   ├── registry.py      DepartmentSpec + AgentSpec
 │   ├── llm.py           Provider factory + resilient wrapper + deterministic demo model
-│   └── common.py        Supervisor helpers (LLM with deterministic fallback)
-├── tests/               11 offline tests — run ~10s, no network, no keys
-├── database/schema.sql  Reference schema (workspace_id-ready for multi-tenant)
+│   └── common.py        Supervisor helpers (LLM routing with deterministic fallback)
+├── tests/               pytest — currently 41 offline tests
+├── database/schema.sql  Reference schema (reference only; migrations run at boot)
 ├── docker-compose.yml   backend + frontend
 ├── fonts/Amiri-Regular.ttf   Arabic print font for the PDF pipeline
-└── archive/             Historical code kept for reference — see ARCHIVE.md inside
+└── archive/             Historical pre-HQ code — not imported or built
 ```
 
-## The ten registered departments
+## The registered departments
 
 | key | Department | What it does | Approval gate |
 | --- | --- | --- | --- |
-| `books.market` | Books — Market | Google Trends + Etsy → Arabic opportunity report | none |
+| `books.market` | Books — Market | Trends + Etsy → Arabic opportunity report | none |
 | `books.content` | Books — Content | Idea → story → images → PDF | story review |
 | `books.publishing` | Books — Publish | Etsy draft after **your** approval | human required |
 | `intelligence` | Market Intelligence | Niche scan + scored opportunities (0-10) | none |
@@ -89,32 +96,34 @@ ai-business-hq/
 Every department ships with **agent cards** (reasoning / fast / deterministic tiers) at
 `GET /api/agents` — rendered on the **Agent Cards** page (`/agents`).
 
-**Capabilities are reusable services** — declared by every department spec, listed at `GET /api/capabilities`:
+## Verified capabilities (each carries source_url + last_reviewed)
 
 | Capability | Consumed by | Deterministic? |
 | --- | --- | --- |
 | web_research | books.market, intelligence, affiliate | yes |
 | content_generation | books.content, books.market, marketing, intelligence | LLM + Python validation |
-| image_generation | books.content, design | PIL (mock) or OpenAI GPT-Image |
+| image_generation | books.content, design | PIL (fallback) or OpenAI GPT-Image |
 | pdf_generation | books.content | yes |
-| marketplace_listings | books.publishing | MOCK without keys |
+| marketplace_listings | books.publishing | real only with ETSY_KEYSTRING+SECRET+REFRESH+SHOP |
 | opportunity_scoring | affiliate, intelligence, product | yes |
-| unit_economics | finance, affiliate | yes |
+| unit_economics | finance, affiliate | yes — fee model in `agents/fees/` |
 | qa_checks | qa, books.content | yes |
 
-## Golden rules
+## Golden rules — each enforced by a test
 
-1. **No external action without your sign-off.** Approvals flow through the `approvals` table + `/approvals` UI.
-2. **No fabricated numbers.** Finance runs pure Python. Reports carry uncertainty notes.
-3. **All runs are audited** — `tasks`, `task_executions`, `audit_logs` (visible on `/observability`).
-4. **Model per task** — reasoning model for thinking, deterministic Python for math.
-5. **Observability from day one** — `/observability` reads the database directly.
+1. **No external action without your sign-off.** Enforced by `tests/test_approval_gate.py`
+   and `tests/test_phase1_etsy.py` (unauthenticated → 401; no Etsy config → 502 + `draft_failed`, never `published`).
+2. **No fabricated numbers.** Enforced by `tests/test_phase3_fees.py` (hand-calculated Etsy/KDP fixtures)
+   and `tests/test_phase2_gates.py` (no demo opportunity is stored as `live` without explicit gate).
+3. **Every run is audited.** Enforced by `tests/test_hq_routes_and_observability` (in `tests/test_hq.py`) —
+   `/api/observability` reads the database directly and the counts back the test.
+4. **Source is labelled.** Enforced by `tests/test_phase2_gates.py` (`AIHQ_ALLOW_DEMO=0` → no opportunity written).
 
 ## Quick start
 
 ```powershell
 # 1) Configure
-copy .env.example .env   # set MISTRAL_API_KEY + FOUNDER_TOKEN
+copy .env.example .env   # set MISTRAL_API_KEY + FOUNDER_TOKEN (+ optional DATABASE_URL)
 
 # 2) Backend (terminal 1)
 .\.venv\Scripts\uvicorn.exe backend.app.main:app --port 8700 --reload
@@ -125,8 +134,8 @@ npm install
 npm run build && npm start    # http://localhost:3000
 # or npm run dev for development
 
-# 4) Offline tests
-.\.venv\Scripts\python.exe -m pytest tests/ -q
+# 4) Offline tests (no network, no keys)
+.\.venv\Scripts\python.exe -m pytest tests/ -v
 ```
 
 ### Docker
@@ -138,33 +147,33 @@ FOUNDER_TOKEN=$(openssl rand -hex 32) docker compose up --build
 ### Scheduled morning brief
 
 ```powershell
-ENABLE_SCHEDULER=1 TZ=Europe/Berlin uvicorn backend.app.main:app
-# daily_research.run() fires at 08:00 — requires apscheduler (already in requirements)
+ENABLE_SCHEDULER=1 .\.venv\Scripts\uvicorn.exe backend.app.main:app
 ```
 
 ## Talking to the CEO
 
-Through the UI — http://localhost:3000/ceo (Arabic or English).
-Through the API — http://localhost:8700/docs.
+Through the UI — http://localhost:3000/ceo (English or Arabic).
+Or via the API — http://localhost:8700/docs.
 
 ```powershell
-curl -X POST http://localhost:8700/api/ceo/run ^
-  -H "Authorization: Bearer YOUR_FOUNDER_TOKEN" ^
-  -H "Content-Type: application/json" ^
+curl -X POST http://localhost:8700/api/ceo/run `
+  -H "Authorization: Bearer YOUR_FOUNDER_TOKEN" `
+  -H "Content-Type: application/json" `
   -d "{\"task\": \"analyze the children's-book market\"}"
 ```
 
 ## Languages
 
-English is the default; Arabic is one click away via the **`AR — العربية`** button in the
-top-right area (or the sidebar footer). Every page — nav, badges, buttons, empty states,
-error messages — follows the active language (`frontend/lib/lang.tsx`).
+English is the default; Arabic is one click away via the **`AR — العربية`** button in
+the top bar. Every page, badge, and button follows the active language (`frontend/lib/lang.tsx`).
 
 ## Notes & honesty
 
-- **Archive is no longer a project.** The old `legacy/` and pre-HQ code were moved to
-  `archive/` with a full explanation (`archive/ARCHIVE.md`). Nothing there runs or is imported.
-- Live LLM: Mistral free tier hits 429 often. The `ResilientChatModel` wrapper
-  **falls back to deterministic replies** and labels the note in the UI (`llm_note`).
-- Real Etsy: fill `ETSY_API_KEY`, `ETSY_ACCESS_TOKEN`, `ETSY_SHOP_ID` in `.env` for real listing creation.
-- The product is domain-agnostic — Books Agent was the first department, not the identity of the system.
+- **Archive is no longer a project.** The old `legacy/` and pre-HQ code were moved to `archive/`
+  with a full explanation (`archive/ARCHIVE.md`). Nothing there runs or is imported.
+- **Etsy** — without `ETSY_KEYSTRING` + `ETSY_SHARED_SECRET` + `ETSY_REFRESH_TOKEN` + `ETSY_SHOP_ID`,
+  the **publish flow fails hard with a structured error** (HTTP 502) and the product stays `draft_failed`. No listing is ever created without explicit founder sign-off.
+- **LLM** — Mistral free tier hits 429. The `ResilientChatModel` **falls back to deterministic replies
+  and labels the note** in the UI (`llm_note`).
+- The product is domain-agnostic — Books was the first department, not the identity of the system.
+- **Demo mode** — `AIHQ_ALLOW_DEMO=1` enables clearly-labelled demo output. Without it, demo data is blocked at the gate.
