@@ -54,7 +54,7 @@ def build_book_pdf(story: dict, image_paths: list[str], out_path: Path,
                    language: str = "ar",
                    text_direction: str = "rtl") -> Path:
     font = _font(font_path)
-    subtitle = {"ar": "قصة مصوّرة بالعربية",
+    subtitle = {"en": "Illustrated English story",
                 "fr": "Album illustré français",
                 "en": "Illustrated English book"}.get(language, "Illustrated book")
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -67,7 +67,7 @@ def build_book_pdf(story: dict, image_paths: list[str], out_path: Path,
         _draw_image_cover(c, image_paths[0])
     c.setFillColor(HexColor("#173A5E"))
     c.setFont(font, 34) if font else c.setFont("Helvetica-Bold", 34)
-    for i, line in enumerate(_wrap_rtl(story.get("title", "قصة"), font, 34, _PAGE - 1.2 * IN)):
+    for i, line in enumerate(_wrap_rtl(story.get("title", "Story"), font, 34, _PAGE - 1.2 * IN)):
         c.drawCentredString(_PAGE / 2, _PAGE - 0.9 * IN - i * 0.62 * IN, line)
     c.setFont(font, 16) if font else c.setFont("Helvetica", 16)
     c.setFillColor(HexColor("#7A3B2E"))
@@ -115,8 +115,8 @@ def _draw_image_cover(c, path: str) -> None:
 from agents.capabilities import CapabilitySpec, register_capability
 register_capability(CapabilitySpec(
     id="pdf_generation",
-    title_en="PDF Generation", title_ar="توليد PDF",
+    title_en="PDF Generation", title_ar="PDF Generation",
     description_en="8.5×8.5 inch RTL Arabic PDF with Amiri font (children's print format).",
-    description_ar="PDF مربع 8.5×8.5 بالعربية RTL بخط Amiri (صيغة كتب الطفل).",
+    description_ar="8.5x8.5 inch LTR print PDF using Amiri (Latin coverage) — children's print format.",
     used_by=["books.content"], deterministic=True,
 ))

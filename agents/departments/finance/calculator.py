@@ -17,8 +17,8 @@ from agents.capabilities.finance import unit_economics  # noqa: F401 — single 
 def _calculator(state: HQState) -> HQState:
     task = (state.get("task") or "")
     try:
-        m_price = re.search(r"(\d+(?:\.\d+)?)\s*(?:\$|دولار|usd|السعر)", task, re.I)
-        m_pages = re.search(r"(\d{1,4})\s*(?:صفحة|صفحات|pages|صفحة)", task, re.I)
+        m_price = re.search(r"(\d+(?:\.\d+)?)\s*(?:\$|usd|eur|price|dollar)", task, re.I)
+        m_pages = re.search(r"(\d{1,4})\s*(?:pages|page|pp)", task, re.I)
         price = float(m_price.group(1)) if m_price else 4.99
         pages = int(m_pages.group(1)) if m_pages else 24
         result = unit_economics(price, pages)
@@ -101,8 +101,8 @@ def run(task: str = "", task_id: int | None = None, workspace: str = "default") 
 
 register(DepartmentSpec(
     key="finance", sector="finance",
-    title_ar="المالية والهوامش", title_en="Finance",
-    description_ar="رسوم Etsy/KDP وصافي الوحدة لكل سعر وعدد صفحات — حسابات Python حتمية",
+    title_ar="Finance & Margins", title_en="Finance",
+    description_ar="Etsy/KDP fees + net margin per price × page count — deterministic Python.",
     description_en='Etsy/KDP fees + unit economics — Python math only',
     capabilities=["unit_economics", "fee_modeling"],
     allowed_tools=["unit_economics"],

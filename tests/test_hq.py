@@ -37,11 +37,11 @@ def test_registry_lists_required_departments():
 
 # ---------------- CEO router ----------------
 @pytest.mark.parametrize("task,expected", [
-    ("ارفع الكتاب على Etsy", "books.publishing"),
-    ("ابحث عن فرصة تسويق بالعمولة", "affiliate"),
-    ("احسب هامش كتاب بسعر 9.5 دولار", "finance"),
-    ("افحص جودة الكتاب الحالي", "qa"),
-    ("اقترح حزمة تسويق لكتاب", "marketing"),
+    ("upload the book on Etsy", "books.publishing"),
+    ("search for affiliate opportunity", "affiliate"),
+    ("calculate the margin of a 9.5 dollar book", "finance"),
+    ("run QA on the current book", "qa"),
+    ("suggest a marketing pack for a book", "marketing"),
 ])
 def test_ceo_routes(task, expected):
     assert ceo.route_task(task) == expected
@@ -50,7 +50,7 @@ def test_ceo_routes(task, expected):
 # ---------------- full book pipeline ----------------
 def test_books_pipeline_with_publish_gate(tmp_env):
     from agents.departments.books import content
-    out = content.run(idea="سلحفاة تعشق الرسم", task_id=None, stop_after="story")
+    out = content.run(idea="a turtle who loves to draw", task_id=None, stop_after="story")
     assert out["ok"], out
     slug = out["slug"]
 
@@ -67,24 +67,24 @@ def test_books_pipeline_with_publish_gate(tmp_env):
     from fastapi.testclient import TestClient
     from backend.app.main import app
     client = TestClient(app, raise_server_exceptions=False)
-    r = client.post(f"/api/books/{slug}/publish-request", json={"slug": slug, "note": "اختبار"},
+    r = client.post(f"/api/books/{slug}/publish-request", json={"slug": slug, "note": "asap"},
                     headers={"Authorization": f"Bearer {os.environ['FOUNDER_TOKEN']}"})
     assert r.status_code == 200
     aid = r.json()["approval_id"]
 
     # rejected decision — execution is refused
     r = client.post(f"/api/approvals/{aid}/decide",
-                    json={"decision": "reject", "note": "لاحقاً"},
+                    json={"decision": "reject", "note": "later"},
                     headers={"Authorization": f"Bearer {os.environ['FOUNDER_TOKEN']}"})
     assert r.status_code == 200
     assert svc.get_approval(aid)["status"] == "rejected"
 
     # fresh request then approve — without ETSY_* it must not be labelled "published"; a real error surfaces
     aid = client.post(f"/api/books/{slug}/publish-request",
-                      json={"slug": slug, "note": "مرة أخرى"},
+                      json={"slug": slug, "note": "again"},
                       headers={"Authorization": f"Bearer {os.environ['FOUNDER_TOKEN']}"}).json()["approval_id"]
     r = client.post(f"/api/approvals/{aid}/decide",
-                    json={"decision": "approve", "note": "تم"},
+                    json={"decision": "approve", "note": "ok"},
                     headers={"Authorization": f"Bearer {os.environ['FOUNDER_TOKEN']}"})
     assert r.status_code in (502, 422), r.text
     book = svc.get_product(slug)

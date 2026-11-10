@@ -6,7 +6,7 @@ from pathlib import Path
 from backend.app.config import ARABIC_FONT, BOOKS_DIR
 
 
-def check_product(slug: str, language: str = "ar") -> list[tuple[str, bool, str]]:
+def check_product(slug: str) -> list[tuple[str, bool, str]]:
     d = BOOKS_DIR / slug
     checks: list[tuple[str, bool, str]] = []
 
@@ -42,25 +42,15 @@ def check_product(slug: str, language: str = "ar") -> list[tuple[str, bool, str]
         checks.append(("Etsy title ≤ 140 chars", 0 < len(title) <= 140, f"len {len(title)}"))
         checks.append(("Etsy tags ≤ 13", len(etsy.get("tags", [])) <= 13,
                        f"actual {len(etsy.get('tags', []))}"))
-        from agents.localization import QA_RULES, has_arabic_script
-        lang = (language or "ar").strip().lower()
-        if lang == "ar":
-            for rule_id in QA_RULES["ar"]:
-                if rule_id == "qa.ar.1":
-                    checks.append(("qa.ar.1 title contains Arabic script",
-                                   has_arabic_script(str(story.get("title", ""))), ""))
-                elif rule_id == "qa.ar.4":
-                    checks.append(("qa.ar.4 Amiri font required before PDF build",
-                                   ARABIC_FONT.exists(), str(ARABIC_FONT)))
-    checks.append(("Amiri Arabic font present", ARABIC_FONT.exists(), str(ARABIC_FONT)))
+    checks.append(("Amiri font present (Latin coverage)", ARABIC_FONT.exists(), str(ARABIC_FONT)))
     return checks
 
 
 from agents.capabilities import CapabilitySpec, register_capability
 register_capability(CapabilitySpec(
     id="qa_checks",
-    title_en="QA Preflight Gate", title_ar="بوابة فحص الجودة",
+    title_en="QA Preflight Gate", title_ar="QA Preflight Gate",
     description_en="Structure/images/PDF/Etsy field limits + Arabic font availability — deterministic PASS/FAIL.",
-    description_ar="بنية/صور/PDF/حدود حقول Etsy/توفّر الخط العربي — حكم حتمي PASS/FAIL.",
+    description_ar="Structure/images/PDF/Etsy field limits/font present — deterministic PASS/FAIL gate.",
     used_by=["qa", "books.content"], deterministic=True,
 ))

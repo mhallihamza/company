@@ -62,7 +62,7 @@ def _rising(series: list[float]) -> bool:
 def _mock_entry(keyword: str) -> dict[str, Any]:
     seed = int(hashlib.sha256(keyword.encode()).hexdigest(), 16)
     return {"avg_interest": 40 + seed % 40, "trend": "rising" if seed % 3 else "steady",
-            "related": [f"{keyword} book", f"{keyword} كراسل", f"{keyword} للأطفال"]}
+            "related": [f"{keyword} book", f"{keyword} for kids"]}
 
 
 def _mock_trends(keywords: list[str], source: str) -> dict[str, Any]:
@@ -113,8 +113,8 @@ def _now() -> str:
 from agents.capabilities import CapabilitySpec, register_capability
 register_capability(CapabilitySpec(
     id="web_research",
-    title_en="Web Research", title_ar="بحث الويب",
+    title_en="Web Research", title_ar="Web Research",
     description_en="Google Trends signals + public marketplace competition estimates (utils for every department).",
-    description_ar="إشارات Google Trends وتقديرات منافسة أسواق عامة (أداة كل قسم).",
+    description_ar="Google Trends signals + public marketplace competition estimates (shared tool).",
     used_by=["books.market", "intelligence", "affiliate"], deterministic=True,
 ))

@@ -26,9 +26,9 @@ def _slugify(text: str) -> str:
 
 
 def _story(state: HQState) -> HQState:
-    idea = (state.get("idea") or state.get("task") or "قصة أطفال مجهولة").strip()
+    idea = (state.get("idea") or state.get("task") or "an untitled children's story").strip()
     try:
-        story = content_tools.write_story(idea, state.get("language", "ar"), 12)
+        story = content_tools.write_story(idea, state.get("language", "en"), 12)
         slug = _slugify(story["title"])
         d = BOOKS_DIR / slug
         d.mkdir(parents=True, exist_ok=True)
@@ -70,12 +70,12 @@ def _pdf_builder(state: HQState) -> HQState:
                                        key=lambda p: p.stem)]
         out = d / "book.pdf"
         try:
-            font_path = font_path_for(state.get("font_ref") or "font.amiri")
+            font_path = font_path_for(state.get("font_ref") or "font.dejavu")
         except FileNotFoundError:
             font_path = ARABIC_FONT  # documented fallback — the only font we ship
         pdf.build_book_pdf(story, imgs, out,
                            font_path=font_path,
-                           language=str(state.get("language") or "ar").lower(),
+                           language=str(state.get("language") or "en").lower(),
                            text_direction=str(state.get("text_direction") or "rtl"))
         svc.upsert_product(slug, story["title"], status="pdf", pdf_path=str(out),
                            cover_path=imgs[0] if imgs else None)
@@ -135,7 +135,7 @@ def run(task: str = "", task_id: int | None = None, workspace: str = "default",
                     "error": f"no enabled market profile ({known}) — enable one at /profiles"}
         language = str(profile.get("language") or "ar").lower()
         lang = get_language_profile(language)   # fail fast — unsupported code → UnsupportedLanguage
-        state: HQState = {"task": idea or task or "قصة أطفال", "idea": idea or task,
+        state: HQState = {"task": idea or task or "a children's story", "idea": idea or task,
                           "run_id": task_id, "progress": [], "stop_after": stop_after or "",
                           "language": language,
                           "text_direction": lang.text_direction,
@@ -168,8 +168,8 @@ from agents.registry import AgentSpec, DepartmentSpec, register
 
 register(DepartmentSpec(
     key="books.content", sector="books",
-    title_ar="الكتب — مشرف المحتوى", title_en="Books — Content Supervisor",
-    description_ar="يكتب القصة ثم يولّد الصور ثم يبني PDF مربع 8.5×8.5 بخط Amiri",
+    title_ar="Books — Content Supervisor", title_en="Books — Content Supervisor",
+    description_ar="Writes the story, generates images, builds the 8.5x8.5 print PDF (Amiri).",
     description_en='Write → illustrate → print 8.5×8.5 book PDF with Arabic typography',
     capabilities=["write_story", "generate_images", "build_pdf"],
     allowed_tools=["llm", "image_renderer", "pdf_builder"],

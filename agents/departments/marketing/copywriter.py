@@ -22,15 +22,15 @@ def _copywriter(state: HQState) -> HQState:
         return {"error": "Brief is empty", "progress": state.get("progress", []) + ["FAILED copywriter"]}
     try:
         model = get_chat_model(temperature=0.6, max_tokens=1500)
-        sys = ("[ROLE:marketing.copywriter]\nYou prepare a truthful go-to-market copy pack for an Arabic kids book. "
+        sys = ("[ROLE:marketing.copywriter]\nYou prepare a truthful go-to-market copy pack for an English kids book. "
                "Return ONLY JSON {\"seo_keywords\": [str], \"description\": str, \"pinterest\": [str], "
                "\"calendar\": [str], \"disclaimer\": str}. No invented figures, no fake urgency.\n"
                f"BRIEF: {brief}\n")
         pack = regex_json(str(model.invoke([SystemMessage(content=sys),
-                                            HumanMessage(content="جهّز الحزمة")]).content))
+                                            HumanMessage(content="create the pack")]).content))
         missing = [k for k in REQUIRED if k not in pack]
         if missing:
-            raise ValueError(f"الأقسام الناقصة: {missing}")
+            raise ValueError(f"Missing sections: {missing}")
         pack["seo_keywords"] = [str(k)[:60] for k in pack["seo_keywords"]][:8]
 
         slug = re.sub(r"\W+", "_", brief, flags=re.UNICODE).strip("_")[:30] or "book"
@@ -45,7 +45,7 @@ def _copywriter(state: HQState) -> HQState:
                  "",
                  "#### Promo calendar", *[f"- {c}" for c in pack["calendar"]],
                  "",
-                 f"*{pack.get('disclaimer', 'اقتراح محتوى يحتاج موافقتك قبل النشر')}*"]
+                 f"*{pack.get('disclaimer', 'Suggestion — needs your approval before publishing')}*"]
         out.write_text("\n".join(lines), encoding="utf-8")
         svc.add_report(str(out), f"GTM pack {brief[:40]}", out.read_text(encoding="utf-8"))
         return {"summary": f"Marketing pack ready — {out.name}",
@@ -90,8 +90,8 @@ def run(task: str = "", task_id: int | None = None, workspace: str = "default") 
 
 register(DepartmentSpec(
     key="marketing", sector="marketing",
-    title_ar="التسويق وSEO", title_en="Marketing & SEO",
-    description_ar="يولّد كلمات SEO ووصف قوائم وأفكار Pinterest وتقويم ترويج — لا ينشر دون موافقتك",
+    title_ar="Marketing & SEO", title_en="Marketing & SEO",
+    description_ar="Generates SEO keywords, listing copy, Pinterest ideas, promo calendar — never publishes without approval.",
     description_en='Truthful SEO + Pinterest + content calendar — never auto-publish',
     capabilities=["seo_keywords", "listing_copy", "pinterest_calendar"],
     allowed_tools=["content_generation"],

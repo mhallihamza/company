@@ -77,7 +77,7 @@ def test_api_run_blocked_at_autonomy_zero(tmp_env, monkeypatch):
     assert "autonomy" in r.json().get("detail", "").lower()
     # even the CEO cannot run at 0
     r2 = client.post("/api/ceo/run",
-                     json={"task": "رأس حربة"}, headers=headers)
+                     json={"task": "run the floor"}, headers=headers)
     assert r2.status_code == 200
     assert r2.json()["ok"] is False or "blocked" in str(r2.json()).lower()
 

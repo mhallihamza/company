@@ -95,6 +95,15 @@ def _ensure_table():
                 s._execute(f"ALTER TABLE market_profiles ADD COLUMN {name} {ddl}")
         except Exception:  # noqa: BLE001 — column may already exist on sqlite
             pass
+    # English-only product migration: legacy SA/ar seed rows → SA/en (preserves user edits)
+    try:
+        rows = s.q("SELECT profile_id FROM market_profiles WHERE country='SA' AND language='en'")
+        if not rows:
+            s._execute("UPDATE market_profiles SET language='en', dir='ltr', font='DejaVu Serif', "
+                       "story_prompt_ref='story.en', font_ref='font.dejavu', text_direction='ltr', "
+                       "qa_ruleset_ref='qa.en' WHERE country='SA' AND language='ar'")
+    except Exception:  # noqa: BLE001
+        pass
     # backfill text_direction from legacy `dir`
     try:
         s._execute("UPDATE market_profiles SET text_direction = dir WHERE text_direction IS NULL")
@@ -146,21 +155,21 @@ _STARTER_SEEDS = [
              {"name": "paques", "start": "Mars", "end": "Avril", "lead_weeks": 6},
          ],
          qa_ruleset_ref="qa.fr"),
-    dict(country="SA", language="ar", currency="SAR", dir="rtl", font="Amiri",
-         seeds=["قصص قبل النوم", "عيد الفطر", "عيد الأضحى", "أبجدية عربية", "رمضان"],
+    dict(country="SA", language="en", currency="SAR", dir="ltr", font="DejaVu Serif",
+         seeds=["arabic kids books", "eid gift", "ramadan crafts", "english alphabet", "bedtime stories"],
          seasonal={"ramadan": "February–April",
                    "eid_fitr": "March–April",
                    "eid_adha": "May–June",
                    "back_to_school": "August–September"},
-         fee_model_ref="etsy.global", story_prompt_ref="story.ar",
-         font_ref="font.amiri", text_direction="rtl",
+         fee_model_ref="etsy.global", story_prompt_ref="story.en",
+         font_ref="font.dejavu", text_direction="ltr",
          seasonal_calendar=[
              {"name": "ramadan", "start": "February", "end": "April", "lead_weeks": 8},
              {"name": "eid_fitr", "start": "March", "end": "April", "lead_weeks": 8},
              {"name": "eid_adha", "start": "May", "end": "June", "lead_weeks": 8},
              {"name": "back_to_school", "start": "August", "end": "September", "lead_weeks": 8},
          ],
-         qa_ruleset_ref="qa.ar"),
+         qa_ruleset_ref="qa.en"),
 ]
 
 

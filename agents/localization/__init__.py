@@ -1,18 +1,16 @@
-"""Language/profile localization — the ONLY supported language adapters (en, fr, ar).
+"""Language/profile localization — the ONLY supported language adapters (en, fr).
 
 Provides, per language:
-  story writer instructions (en / fr / ar)
+  story writer instructions
   font reference resolution (amiri / dejavu) with explicit search paths
-  text direction (rtl for ar/he, else ltr)
+  text direction
   QA rule strings consumed by QA departments
 
-Anything outside en/fr/ar → UnsupportedLanguage (fail fast; never guess).
+Anything outside en/fr → UnsupportedLanguage (fail fast; never guess).
 """
 from __future__ import annotations
-import os
-import re
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -20,7 +18,7 @@ AMIRI = ROOT / "fonts" / "Amiri-Regular.ttf"
 
 
 class UnsupportedLanguage(ValueError):
-    """Raised when a language code matches no adapter — never silently default to Arabic."""
+    """Raised when a language code matches no adapter — never silently default."""
 
 
 # ---------- fonts ----------
@@ -36,7 +34,7 @@ def _dejavu_candidates() -> list[Path]:
 
 
 def font_path_for(font_ref: str) -> Path:
-    """Resolve a font reference. amiri → repo font; dejavu → OS font (explicit search)."""
+    """Resolve a font reference. amiri → repo font (Latin coverage too); dejavu → OS font."""
     ref = (font_ref or "").strip().lower()
     if ref == "font.amiri":
         if AMIRI.exists():
@@ -46,9 +44,9 @@ def font_path_for(font_ref: str) -> Path:
         for candidate in _dejavu_candidates():
             if candidate.exists():
                 return candidate
-        # Amiri includes full Latin coverage (upper/lower case, punctuation, digits)
+        # Amiri includes full Latin coverage — documented fallback for Latin scripts
         if AMIRI.exists():
-            return AMIRI   # documented fallback — Latin books typeset in Amiri
+            return AMIRI
         raise FileNotFoundError(
             "font.dejavu not found — looked in: " + ", ".join(str(p) for p in _dejavu_candidates())
             + f"; no Amiri fallback at {AMIRI} either")
@@ -60,12 +58,6 @@ def font_path_for(font_ref: str) -> Path:
 
 # ---------- QA rules ----------
 QA_RULES: dict[str, tuple[str, ...]] = {
-    "ar": (
-        "qa.ar.1",  # title must contain Arabic-script characters
-        "qa.ar.2",  # no unescaped Latin words inside Arabic story text (proper terms excepted)
-        "qa.ar.3",  # text direction is rtl
-        "qa.ar.4",  # Amiri font required before PDF build
-    ),
     "en": (
         "qa.en.1",  # plain English prose, no untranslated words from other scripts
         "qa.en.2",  # ltr direction
@@ -88,9 +80,9 @@ class LanguageProfile:
     story_human: str                # user turn for the story writer
     font_ref: str                   # resolved by font_path_for()
     text_direction: str             # rtl | ltr
-    qa_ruleset_ref: str             # 'qa.ar' | 'qa.en' | 'qa.fr'
+    qa_ruleset_ref: str             # 'qa.en' | 'qa.fr'
     qa_rules: tuple[str, ...]
-    etsy_locale: str                # e.g. 'en-US', 'fr-FR', 'ar'
+    etsy_locale: str                # e.g. 'en-US', 'fr-FR'
 
 
 _STORY = {
@@ -116,16 +108,6 @@ _STORY = {
         story_human="Écris l'histoire",
         font_ref="font.dejavu", text_direction="ltr",
         qa_ruleset_ref="qa.fr", qa_rules=QA_RULES["fr"], etsy_locale="fr-FR"),
-    "ar": LanguageProfile(
-        code="ar", name="Arabic",
-        story_system=("أنت كاتب قصص أطفال دافئ بالعربية. جمل عربية قصيرة للأطفال من 3-6 سنوات. "
-                      "أعد فقط JSON صالح: "
-                      '{"title": str, "character_sheet": str, "style": str, '
-                      '"pages": [{"text": str, "image_prompt": str}], '
-                      '"etsy": {"title": str, "description": str, "tags": [str]} }'),
-        story_human="اكتب القصة",
-        font_ref="font.amiri", text_direction="rtl",
-        qa_ruleset_ref="qa.ar", qa_rules=QA_RULES["ar"], etsy_locale="ar"),
 }
 
 
@@ -141,10 +123,6 @@ def get_story_prompt(code: str, idea: str, pages: int) -> str:
     return ("[ROLE:story_writer]\n" + profile.story_system + "\n"
             f"Exactly {pages} pages.\n"
             f"IDEA: {idea.strip()[:180]}\nPAGES: {pages}\n")
-
-
-def has_arabic_script(text: str) -> bool:
-    return bool(re.search(r"[\u0600-\u06FF]", text or ""))
 
 
 def list_supported() -> list[str]:

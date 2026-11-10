@@ -85,8 +85,8 @@ def run(task: str = "", task_id: int | None = None, workspace: str = "default") 
 
 register(DepartmentSpec(
     key="qa", sector="qa",
-    title_ar="الجودة والامتثال", title_en="QA & Compliance",
-    description_ar="بوابة حتمية قبل النشر: بنية، صور، PDF، حدود Etsy، الخط العربي",
+    title_ar="QA & Compliance", title_en="QA & Compliance",
+    description_ar="Deterministic gate before publishing: structure, images, PDF, Etsy limits, font.",
     description_en='Deterministic PASS/FAIL preflight gate before any publish',
     capabilities=["preflight_gate", "story_validation", "pdf_integrity", "etsy_limits"],
     allowed_tools=["qa_checks"],

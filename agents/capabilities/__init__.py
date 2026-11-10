@@ -28,7 +28,7 @@ CAPABILITIES: dict[str, CapabilitySpec] = {}
 
 def register_capability(spec: CapabilitySpec) -> CapabilitySpec:
     if not spec.id:
-        raise ValueError("CapabilitySpec تحتاج id")
+        raise ValueError("CapabilitySpec requires an id")
     CAPABILITIES[spec.id] = spec
     return spec
 

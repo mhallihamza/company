@@ -370,8 +370,8 @@ from agents.capabilities import CapabilitySpec, register_capability
 
 register_capability(CapabilitySpec(
     id="marketplace_listings",
-    title_en="Marketplace Listings", title_ar="قوائم الأسواق",
+    title_en="Marketplace Listings", title_ar="Marketplace Listings",
     description_en="Etsy competition read + full draft upload (Etsy v3 OAuth). No mocks when unconfigured.",
-    description_ar="قراءة منافسة Etsy + رفع مسودة كاملة (Etsy v3 OAuth). بدون محاكاة دون مفاتيح.",
+    description_ar="Etsy competition read + full draft upload (Etsy v3 OAuth). No fakery without keys.",
     used_by=["books.publishing"], deterministic=True,
 ))

@@ -32,4 +32,4 @@ def test_ceo_keyword_routing_uses_word_boundaries():
     from agents.ceo.graph import route_task
     assert route_task("Qatar back to school niches") != "qa"
     assert route_task("run the QA checker") == "qa"
-    assert route_task("مسافة إلى مطار الشام") != "qa"
+    assert route_task("distance to the airport") != "qa"

@@ -105,8 +105,8 @@ from agents.registry import AgentSpec, DepartmentSpec, register
 
 register(DepartmentSpec(
     key="books.publishing", sector="books",
-    title_ar="الكتب — مشرف النشر", title_en="Books — Publishing Supervisor",
-    description_ar="ينفذ رفع ملف الكتاب كمسودة على Etsy بعد موافقة بشرية صريحة",
+    title_ar="Books — Publishing Supervisor", title_en="Books — Publishing Supervisor",
+    description_ar="Uploads the book draft to Etsy after explicit human approval.",
     description_en='Etsy draft after your explicit approval (human-gated)',
     capabilities=["etsy_draft_listing"],
     allowed_tools=["etsy"],

@@ -5,7 +5,7 @@
 > **delegates to registered departments**, tracks execution, and returns
 > a report — asking **your** sign-off before any external effect.
 
-The UI is English-first with Arabic one click away (top-right → `AR — العربية`).
+The UI is English-only (Arabic support was removed by founder request).
 
 ## Architecture
 
@@ -67,7 +67,7 @@ ai-business-hq/
 │   ├── capabilities/    web_research · content_generation · image_generation · pdf_generation
 │   │                    marketplace_listings · opportunity_scoring · unit_economics · qa_checks
 │   ├── fees/            etsy.py · kdp.py — verified (source_url + last_reviewed) · registry.py
-│   ├── localization/    Per-language story prompts (en/fr/ar) · fonts · text direction · QA rules
+│   ├── localization/    Per-language story prompts (en/fr) · fonts · text direction · QA rules
 │   ├── workflows/       opportunity_engine.py · daily_research.py · publishing.py
 │   ├── profiles.py      pick enabled market profile (fail-fast when disabled/unknown)
 │   ├── registry.py      DepartmentSpec + AgentSpec
@@ -76,7 +76,7 @@ ai-business-hq/
 ├── tests/               pytest — currently 112 offline tests
 ├── database/schema.sql  Reference schema (reference only; migrations run at boot)
 ├── docker-compose.yml   backend + frontend
-├── fonts/Amiri-Regular.ttf   Arabic print font for the PDF pipeline
+├── fonts/Amiri-Regular.ttf   Bundled font for the PDF pipeline (Latin coverage)
 ```
 
 > `archive/` was removed from the tree in Phase 7 — the historical pre-HQ code is
@@ -87,7 +87,7 @@ ai-business-hq/
 
 | key | Department | What it does | Approval gate |
 | --- | --- | --- | --- |
-| `books.market` | Books — Market | Trends + Etsy → Arabic opportunity report | none |
+| `books.market` | Books — Market | Trends + Etsy → English opportunity report | none |
 | `books.content` | Books — Content | Idea → story → images → PDF | story review |
 | `books.publishing` | Books — Publish | Etsy draft after **your** approval | human required |
 | `intelligence` | Market Intelligence | Niche scan + scored opportunities (0-10) | none |
@@ -157,7 +157,7 @@ ENABLE_SCHEDULER=1 .\.venv\Scripts\uvicorn.exe backend.app.main:app
 
 ## Talking to the CEO
 
-Through the UI — http://localhost:3000/ceo (English or Arabic).
+Through the UI — http://localhost:3000/ceo (English).
 Or via the API — http://localhost:8700/docs.
 
 ```powershell
@@ -169,8 +169,9 @@ curl -X POST http://localhost:8700/api/ceo/run `
 
 ## Languages
 
-English is the default; Arabic is one click away via the **`AR — العربية`** button in
-the top bar. Every page, badge, and button follows the active language (`frontend/lib/lang.tsx`).
+English-only. Arabic support, RTL layout, Arabic routing keywords and Arabic LLM prompts were
+removed by founder request. The legacy rows SA/ar in `market_profiles` are migrated to SA/en at boot.
+The language adapter module still supports fr-fr (French) alongside en (English).
 
 ## Notes & honesty
 

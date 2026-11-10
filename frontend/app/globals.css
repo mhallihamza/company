@@ -31,7 +31,7 @@ body {
     radial-gradient(700px 900px at 50% 120%, rgba(234, 201, 124, 0.04), transparent 60%),
     var(--bg);
   color: var(--text);
-  font-family: "Inter", "Noto Kufi Arabic", "Noto Naskh Arabic", system-ui, -apple-system,
+  font-family: "Inter", system-ui, -apple-system,
                "Segoe UI", Tahoma, Arial, sans-serif;
   font-feature-settings: "tnum" 1, "cv05" 1;
   line-height: 1.6;

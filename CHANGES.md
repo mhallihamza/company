@@ -1,4 +1,4 @@
-# CHANGES — AI Business HQ 3.2.0 (Phases 1–6 + Phase 7 Items 1–7)
+# CHANGES — AI Business HQ 3.2.0 (Phases 1–6 + Phase 7 Items 1–7 + English-only follow-up)
 
 ## Honesty correction (Item 2, Phase 7)
 
@@ -16,16 +16,17 @@ Earlier release claimed "No real Etsy publisher implemented." Corrected:
 | Etsy competition read | ✅ | ✅ (partial when unconfigured) | ❌ — not yet |
 | Unit economics (Etsy/KDP) | ✅ | ✅ (hand-calc fixtures) | n/a |
 | Opportunity engine | ✅ | ✅ (dedupe, scoring) | n/a |
-| Market profiles (us-en / fr-fr / sa-ar) | ✅ seeded + wired | ✅ (`test_item7_profiles.py`) | n/a |
+| Market profiles (us-en / fr-fr / sa-en) | ✅ seeded + wired | ✅ (`test_item7_profiles.py`) | n/a |
 | Approval gate enforcement | ✅ | ✅ (`test_approval_gate.py`) | n/a |
 | Budget cap | ✅ | ✅ | n/a |
 | `/api/health` sanitization | ✅ | ✅ | n/a |
 | Storage excluded from git | ✅ | n/a | n/a |
 | Docker compose (env passthrough) | ✅ | n/a | n/a |
 | Source badges (live/partial/demo) | ✅ | ✅ | n/a |
-| Language adapters (localization en/fr/ar) | ✅ (`agents/localization/`) | ✅ | n/a |
+| Language adapters (localization en/fr) | ✅ (`agents/localization/`) | ✅ | n/a |
+| UI language | ✅ English-only (Arabic removed by founder request) | ✅ | n/a |
 | Fee-model per marketplace region | ✅ `etsy.us` verified · EU/Global **partial** (explicitly unverified) | ✅ | ❌ — no verified EU fee source yet |
-| `/profiles` UI page (EN/AR, per-profile verified/partial badge) | ✅ | manual check | n/a |
+| `/profiles` UI page (EN-only, per-profile verified/partial badge) | ✅ | manual check | n/a |
 | Tokens recorded from provider usage metadata | ✅ (measured/unmeasured) | ✅ | ❌ — not yet exercised against a live paid LLM call |
 | `autonomy_level` enforced | ✅ (API + CEO graph) | ✅ | n/a |
 | Static security scan (bandit) | ✅ 29 → 28 findings listed below | n/a | n/a |
@@ -58,11 +59,11 @@ Earlier release claimed "No real Etsy publisher implemented." Corrected:
 - New `agents/workflows/opportunity_engine.py`: LangGraph Discover → Evidence → Score → Dedupe → Explain.
   Dedupes by `(niche, language, country)`; scores clamped 0-10 and tied to fee-model margin.
 - New `/api/tests`: capture real post-publish signal (views / favorites / sales).
-- New `/api/profiles`: list / create / toggle `market_profiles` (seeds us-en / fr-fr / sa-ar).
+- New `/api/profiles`: list / create / toggle `market_profiles` (seeds us-en / fr-fr / sa-en — see English-only follow-up below).
 
 ### Phase 5 — Multi-market architecture (foundational)
 - `market_profiles` table seeded.
-- Seeds: us-en, fr-fr, sa-ar (RTL + Amiri). No per-market adapters yet — capability shape exists, implementation pending Item 7.
+- Seeds: us-en, fr-fr, sa-en. No per-market adapters yet — capability shape exists, implementation pending Item 7.
 
 ### Phase 6 — Security + reliability
 - `/api/health`: returns only `{status: "ok"}`; detailed view moved to `/api/admin/health` (requires founder token).
@@ -82,10 +83,10 @@ Earlier release claimed "No real Etsy publisher implemented." Corrected:
 - `agents/validation/evidence.py`: `validate_brief(brief, evidence)` with 1e-6 numeric tolerance,
   `cited_evidence` field match, and sales/revenue-wording rejection when evidence only carries favorites.
 - `opportunity_engine._explain` retries once with the violations list, else stores `rejected_by_validator`.
-- `agents/ceo/routing.py`: one source of truth — word-boundary Latin match, Arabic normalization
+- `agents/ceo/routing.py`: one source of truth — word-boundary Latin match, specificity tie-breaker
   (diacritics stripped, alef/hamza unified, taa marbuta, definite article stripped), phrase support,
   specificity tie-breaker (affiliate > qa > finance). `graph.py` and `llm.py` both import from it.
-- `Qatar` no longer routes to qa; `تابع` removed — regression tests in `test_item4_router.py`.
+- `Qatar` no longer routes to qa; the legacy Arabic marker was removed — regression tests in `test_item4_router.py`.
 
 ### Phase 7 — Item 5 (connection pool)
 - `psycopg_pool.ConnectionPool` (min 1, max 5, env-configurable; `check=check_connection`;
@@ -129,33 +130,46 @@ Totals after fix: **0 High, 18 Medium, 10 Low.** `pip-audit --requirement backen
   `seasonal_calendar` (JSON list `{name, start, end, lead_weeks}`), `qa_ruleset_ref`.
   Seeds backfilled for existing installs (`text_direction` from legacy `dir`; legacy free-text
   `seasonal` dict migrated to the structured list). Three starter profiles updated:
-  us-en → `etsy.us` (verified) · fr-fr → `etsy.eu` (**unverified**) · sa-ar → `etsy.global` (**unverified**).
+  us-en → `etsy.us` (verified) · fr-fr → `etsy.eu` (**unverified**) · sa-en → `etsy.global` (**unverified**).
 - `agents/fees/registry.py`: single source of truth `get_fee_model(ref)` + `unit_economics()`.
   Etsy US verified 2026-11-09 (`source_url`, `last_reviewed`). **EU / Global / UK / kdp.eu / kdp.global are
   explicitly NOT verified — numeric fields are absent and calculations return `source='partial'`.**
   `etsy.mars` raises `UnknownFeeModel`. KDP models (`kdp.us` verified) never report fee deductions
   (royalty model — `total_fees: null`).
-- `agents/localization/`: per-language story-writer prompts (en/fr/ar), text direction (`ar` → rtl,
-  else ltr), font resolution with explicit search paths (amiri bundled; dejavu searched on OS,
-  falls back to Amiri — Latin coverage), QA rule sets (`qa.ar/fr/en`). Unknown languages fail fast.
+- `agents/localization/`: per-language story-writer prompts (en/fr), font resolution with explicit search paths
+  (dejavu searched on OS, falls back to bundled Amiri for Latin coverage), QA rule sets. Unknown languages fail fast.
 - `books.content` + `opportunity_engine` consume the selected enabled profile — fail fast on
   unknown/disabled market (`no enabled market profile ('fr-fr') — enable one at /profiles`).
   Opportunity engine Discover seeds from the profile (seasonal keywords + calendar names); Score uses the
   profile's fee model (verified → live math, unverified → margin 5.0 + `fee_source='partial'`, never invented).
-- `/profiles` UI page (EN + AR, one-click AR toggle unchanged; UI stays EN default): cards per market with
-  enabled/verified badges, seasonal calendar, seeds, refs. `GET /api/profiles` returns the new fields plus a
+- `/profiles` UI page (English; cards per market): enabled/verified badges, seasonal calendar, seeds, refs. `GET /api/profiles` returns the new fields plus a
   derived `fee_verified` boolean badge (never invented). French strings for the fr-fr profile ship in
-  `agents/localization` (prompts, calendar, keywords) — the UI itself remains EN default + AR toggle.
-- Tests: `test_item7_profiles.py` (14 tests) — profile switching changes fee result; Arabic profile is RTL;
-  unverified region → partial with no numbers; disabled profile skipped by the engine; unknown market fails fast.
+  `agents/localization` (prompts, calendar, keywords). UI itself is English-only.
+- Tests: `test_item7_profiles.py` (14 tests) — profile switching changes fee result; unverified region → partial with no numbers; disabled profile skipped by the engine; unknown market fails fast.
+
+## Phase 7 — English-only follow-up (Arabic support removed by founder request)
+
+At the founder's explicit request, ALL Arabic support was removed from the product:
+
+- **Frontend:** the entire Arabic dictionary (`ar:` in `frontend/lib/lang.tsx`) and the "AR — العربية" toggle
+  are removed. `frontend/lib/lang.tsx` is now English-only; `<html dir="ltr">` always. The two pages that
+  picked `title_ar`/`description_ar` conditionally now use the English fields.
+- **Backend:** CEO prompt translated to English (`agents/ceo/prompts.py`); routing drops Arabic normalization
+  and Arabic keywords (English/French matching only); fake-LLM scripted replies translated to English;
+  story prompts and QA rules limited to en/fr; QA checker drops the Arabic-specific branch.
+- **Seeds & localization:** the sa-ar starter profile became **sa-en** (English seeds/refs, ltr, qa.en,
+  Latin-compatible font). A boot-time migration converts any legacy (SA, 'ar') rows to (SA, 'en') without
+  touching custom rows.
+- **Error messages and logs:** previously Arabic-flavored runtime strings (agents/, departments/, tests/)
+  are translated to English. API 401 message is now English.
+- Tests updated to English fixtures; 111 passed offline (1 Postgres-gated skip).
 
 ## Known limits / what's still on the board
 
 - Etsy integration **not yet verified against a live Etsy shop**.
 - Seasonal calendar feeds Discover keyword seeds; the scorer does not yet weight timing by the calendar.
-- Seasonal events and Ramadan dates in the sa-ar seed are **month-range placeholders**, editable on /profiles —
-  verify them against the official Islamic calendar before campaigns.
+- Ramadan dates in the sa-en seed are **month-range placeholders**, editable on /profiles — verify them against
+  the actual Islamic calendar before campaigns.
 - No real-time workers — 12-image books will still block the HTTP request shape.
 - Budget tracking uses a flat $0.15 per finished task estimate; provider LLM token metadata is recorded when the provider returns it (measured/unmeasured split, shown in `/observability`).
-- UI strings ship in EN (default) + AR (one-click toggle) only; the fr-fr profile runs the engine in French (prompts, seeds, calendar) — no FR UI toggle yet.
 - `design` department is still a stub (image provider hook); `books.design` does not run a real design model.

@@ -6,7 +6,7 @@ import { useLang } from "@/lib/lang";
 import { api, type Capability } from "@/lib/api";
 
 export default function CapabilitiesPage() {
-  const { t, lang } = useLang();
+  const { t } = useLang();
   const [caps, setCaps] = useState<Capability[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,7 +25,7 @@ export default function CapabilitiesPage() {
           <div key={c.id} className="card">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <h2 className="font-bold">🧩 {lang === "ar" ? c.title_ar : c.title_en}</h2>
+                <h2 className="font-bold">🧩 {c.title_en}</h2>
                 <div className="muted text-[11px] font-mono mt-0.5" dir="ltr">{c.id}</div>
               </div>
               <div className="flex flex-col items-end gap-1.5 shrink-0">
@@ -33,7 +33,7 @@ export default function CapabilitiesPage() {
                 <span className="muted text-[10px]">v{c.version}</span>
               </div>
             </div>
-            <p className="muted mt-3 text-sm leading-6">{lang === "ar" ? c.description_ar : c.description_en}</p>
+            <p className="muted mt-3 text-sm leading-6">{c.description_en}</p>
             <div className="hairline" />
             <div className="flex items-center justify-between gap-3">
               <span className="text-[11px] muted">{t("caps.used_by")}:</span>

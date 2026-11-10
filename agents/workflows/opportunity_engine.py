@@ -25,7 +25,7 @@ from agents.profiles import pick_profile
 from backend.app.config import REPORTS_DIR
 from backend.app.services import store as svc
 
-ALLOWED_LANGS = ("en", "ar", "fr")
+ALLOWED_LANGS = ("en", "fr")
 COUNTRIES = ("US", "SA", "AE", "FR")
 
 
@@ -88,15 +88,6 @@ def _fallback_candidates(profile: dict) -> list[dict]:
     """Profile-aware static fallback — never invent scores, evidence step grounds these."""
     lang = str(profile.get("language") or "en").lower()
     country = str(profile.get("country") or "US").upper()
-    if lang == "ar":
-        return [
-            {"niche": "arabic_alphabet", "keyword": "أبجدية عربية", "language": "ar", "country": country,
-             "rationale": "Arabic alphabet workbook demand"},
-            {"niche": "bedtime_stories", "keyword": "قصص قبل النوم", "language": "ar", "country": country,
-             "rationale": "Arabic bedtime storybooks for young children"},
-            {"niche": "coloring_animals", "keyword": "تلوين حيوانات", "language": "ar", "country": country,
-             "rationale": "Low competition coloring niche"},
-        ]
     if lang == "fr":
         return [
             {"niche": "rentrée_scolaire", "keyword": "cahier activités", "language": "fr", "country": country,

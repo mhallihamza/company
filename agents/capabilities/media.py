@@ -85,8 +85,8 @@ def _scene(path: Path, text: str, extra: str, palette: tuple, seed: int) -> Path
 from agents.capabilities import CapabilitySpec, register_capability
 register_capability(CapabilitySpec(
     id="image_generation",
-    title_en="Image Generation", title_ar="توليد الصور",
+    title_en="Image Generation", title_ar="Image Generation",
     description_en="Character-consistent page art: OpenAI gpt-image-1 when IMAGE_PROVIDER=openai, deterministic PIL render otherwise.",
-    description_ar="رسوم صفحات بشخصية ثابتة: OpenAI عندما IMAGE_PROVIDER=openai، وإلا PIL حتمي.",
+    description_ar="Character-consistent page art: OpenAI when IMAGE_PROVIDER=openai, else deterministic PIL.",
     used_by=["books.content", "design"], deterministic=False,
 ))

@@ -21,7 +21,7 @@ def run(limit: int = 20) -> dict:
         if score >= MIN_SCORE:
             svc.set_opportunity_status(opp["opportunity_id"], "pursuing")
             promoted += 1
-            svc.upsert_product(f"opp_{opp['opportunity_id']}", opp.get("title", "مرشح"),
+            svc.upsert_product(f"opp_{opp['opportunity_id']}", opp.get("title", "Candidate"),
                                status="candidate")
         else:
             svc.set_opportunity_status(opp["opportunity_id"], "archived")

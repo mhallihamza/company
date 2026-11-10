@@ -25,13 +25,13 @@ def _scout(state: HQState) -> HQState:
                "Return ONLY JSON {\"candidates\": [{\"product\": str, \"est_price\": number, "
                "\"commission\": pct, \"cookie_days\": number, \"demand\": str, \"competition\": str, "
                "\"program_hint\": str}], \"sources\": str}. Never invent conversion or revenue numbers.\n"
-               f"BRIEF: {brief or 'منتجات كتب الأطفال والبطاقات والقرطاسية'}\n"
+               f"BRIEF: {brief or 'kids books, cards, stationery'}\n"
                f"TRENDS: {json.dumps(signals, ensure_ascii=False)[:700]}\n")
         parsed = regex_json(str(model.invoke([SystemMessage(content=sys),
-                                              HumanMessage(content="المرشحين")]).content))
+                                              HumanMessage(content="candidates")]).content))
         candidates = parsed.get("candidates") or []
         if not candidates:
-            raise ValueError("لم يُرجع المحلل قائمة صالحة")
+            raise ValueError("Analyst returned no valid list")
         return {"research": {"candidates": candidates, "sources": parsed.get("sources", "public")},
                 "progress": state.get("progress", []) + ["RESEARCH_DONE"]}
     except Exception as e:  # noqa: BLE001
@@ -53,9 +53,9 @@ def _analyst(state: HQState) -> HQState:
                 "affiliate", f"{c.get('product')} — ({c.get('commission')}%)",
                 brief, c["score"], {**c, "sources": (state.get("research") or {}).get("sources")})
             lines += [f"#### #{oid} — {c.get('product')}",
-                      f"- البرنامج المقترح: {c.get('program_hint', 'ابحث في Amazon Associates / Awin / CJ / Impact')}",
-                      f"- تكلفة الوحدة: {c.get('unit_commission')} · الدرجة: **{c.get('score')}/10**",
-                      f"- نافذة الرابط: {c.get('cookie_days')} يوم" + (f" · مخاطر: {', '.join(c['risks'])}" if c["risks"] else ""),
+                      f"- Suggested program: {c.get('program_hint', 'search Amazon Associates / Awin / CJ / Impact')}",
+                      f"- Unit commission: {c.get('unit_commission')} · score: **{c.get('score')}/10**",
+                      f"- Cookie window: {c.get('cookie_days')} days" + (f" · risks: {', '.join(c['risks'])}" if c["risks"] else ""),
                       ""]
         REPORTS_DIR.mkdir(parents=True, exist_ok=True)
         out = REPORTS_DIR / f"affiliate_{date.today().isoformat()}.md"
@@ -100,7 +100,7 @@ def _graph():
 
 def run(task: str = "", task_id: int | None = None, workspace: str = "default") -> dict:
     try:
-        result = _graph().invoke({"task": task or "منتجات عمولة مناسبة لكتب الأطفال",
+        result = _graph().invoke({"task": task or "affiliate products fit for kids books",
                                   "run_id": task_id, "progress": []},
                                  config={"recursion_limit": 12})
     except Exception as e:  # noqa: BLE001
@@ -112,8 +112,8 @@ def run(task: str = "", task_id: int | None = None, workspace: str = "default") 
 
 register(DepartmentSpec(
     key="affiliate", sector="affiliate",
-    title_ar="التسويق بالعمولة", title_en="Affiliate Marketing",
-    description_ar="يكتشف منتجات برامج عمولة عامة ويسجل الأقوى بمعادلة حتمية",
+    title_ar="Affiliate Marketing", title_en="Affiliate Marketing",
+    description_ar="Discovers public affiliate products and ranks the strongest with deterministic math.",
     description_en='Find public affiliate programs → score economics + risks deterministically',
     capabilities=["candidate_discovery", "unit_economics_calc", "opportunity_scoring"],
     allowed_tools=["web_research"],

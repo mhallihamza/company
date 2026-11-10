@@ -34,7 +34,7 @@ def _validator(state: HQState) -> HQState:
                 "progress": state.get("progress", []) + ["VALIDATED archived"]}
 
     slug = f"opp_{oid}"
-    title = opp.get("title", f"فرصة #{oid}")
+    title = opp.get("title", f"Opportunity #{oid}")
     svc.upsert_product(slug, title, status="candidate")
     svc.set_opportunity_status(oid, "pursuing")
     return {"summary": f"Candidate product «{title}» — hand off to the relevant department",
@@ -77,8 +77,8 @@ def run(task: str = "", task_id: int | None = None, workspace: str = "default") 
 
 register(DepartmentSpec(
     key="product", sector="product",
-    title_ar="تطوير المنتجات", title_en="Product Development",
-    description_ar="يحوّل الفرص المعتمدة إلى مرشحات منتج بنطاق الحد الأدنى للجودة",
+    title_ar="Product Development", title_en="Product Development",
+    description_ar="Turns approved opportunities into product candidates at minimum viable quality.",
     description_en='Opportunity → candidate product (deterministic go/no-go)',
     capabilities=["opportunity_validation", "product_candidate"],
     allowed_tools=["db"],

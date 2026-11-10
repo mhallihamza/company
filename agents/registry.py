@@ -48,7 +48,7 @@ DEPARTMENTS: dict[str, DepartmentSpec] = {}
 
 def register(spec: DepartmentSpec) -> DepartmentSpec:
     if not spec.key or spec.run is None:
-        raise ValueError("DepartmentSpec تحتاج key و run")
+        raise ValueError("DepartmentSpec requires key and run")
     DEPARTMENTS[spec.key] = spec
     return spec
 

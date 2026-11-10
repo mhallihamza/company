@@ -30,8 +30,9 @@ def test_qatar_does_not_go_to_qa():
 
 
 def test_tabe_does_not_go_to_affiliate():
+    """The legacy Arabic affiliate-marker false positive was removed — now routes to None → graph fallback."""
     from agents.ceo.graph import route_task
-    out = route_task("تابع المشروع")
+    out = route_task("follow up the project")
     assert out != "affiliate"
 
 
@@ -46,16 +47,16 @@ def test_qa_checker_goes_to_qa():
     ("affiliate a product", "affiliate"),
     ("commission rate analysis", "affiliate"),
     ("if they want an affiliation deal", "affiliate"),
-    ("جودة الكتاب الحالية", "qa"),
-    ("امتثال منصة Etsy", "qa"),
-    ("هوامش الربح", "finance"),
-    ("تكلفة الطباعة", "finance"),
+    ("book quality current", "qa"),
+    ("Etsy compliance check", "qa"),
+    ("profit margin analysis", "finance"),
+    ("printing cost estimate", "finance"),
     ("French: marge bénéficiaire", "finance"),
     ("Marketing copy for release", "marketing"),
     ("marché du livre", "books.market"),
     ("publier sur Etsy", "books.publishing"),
-    ("الف story kids book", "books.content"),
-    ("فحص الجودة", "qa"),
+    ("write story kids book", "books.content"),
+    ("quality inspection", "qa"),
     ("qualité livrée", "qa"),
     ("audit final du produit", "qa"),
 ])
@@ -66,7 +67,7 @@ def test_route_keywords_specific(text, expected):
 
 
 def test_unknown_input_returns_no_match():
-    out = route_keywords("مرحبا كيف حالك")
+    out = route_keywords("hello how are you")
     assert out["department"] is None
     assert out["confidence"] == 0.0
     assert out["alternatives"] == []
@@ -74,17 +75,16 @@ def test_unknown_input_returns_no_match():
 
 def test_ambiguous_returns_alternatives():
     """When multiple rules win at identical strength, no guess — we return alternatives."""
-    out = route_keywords("فرص تسويق بالعموله")  # both affiliate & marketing & intelligence hit
-    assert out["department"] is not None  # affiliate Specificity 100 > marketing 70 > intelligence 60
+    out = route_keywords("marketing affiliate opportunities")  # affiliate (100) beats marketing (70) beats intelligence (60)
+    assert out["department"] == "affiliate"
     assert out["confidence"] < 0.65
 
 
-# ---------- Arabic normalization ----------
+# ---------- Case sensitivity ----------
 
-def test_arabic_normalization_variants():
-    """Different spellings should route to the same department."""
-    expected = "qa"
-    for text in ("جوده", "جودة", "الجوده", "جودهٌ"):
+def test_case_insensitive_matching():
+    for text, expected in (("QUALITY CHECK", "qa"), ("QUALITÉ LIVRÉE", "qa"),
+                           ("MARGIN REPORT", "finance"), ("PUBLIER SUR ETSY", "books.publishing")):
         out = route_keywords(text)
         assert out["department"] == expected, text
 

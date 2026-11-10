@@ -14,8 +14,8 @@ from agents.capabilities import research
 from backend.app.config import REPORTS_DIR
 from backend.app.services import store as svc
 
-SEED_KEYWORDS = ["نشاط الحرفيين للأطفال".lower(), "activity book kids", "coloring book animals",
-                 "arabic alphabet learning", "bilingual arabic book", "قصص قبل النوم"]
+SEED_KEYWORDS = ["activity book kids", "coloring book animals",
+                 "arabic alphabet learning", "arabic kids book", "bedtime stories"]
 
 
 def _researcher(state: HQState) -> HQState:
@@ -34,7 +34,7 @@ def _reporter(state: HQState) -> HQState:
         sys = ("[ROLE:report_writer]\nYou are a children's-book market analyst. Write IN ARABIC: "
                "pick top 3 niches, score each /10, propose one book idea each. Be honest about data limits.\n"
                f"RESEARCH_DATA: {json.dumps(research_data, ensure_ascii=False)[:2500]}\n")
-        content = str(model.invoke([SystemMessage(content=sys), HumanMessage(content="اكتب التقرير")]).content)
+        content = str(model.invoke([SystemMessage(content=sys), HumanMessage(content="Write the report")]).content)
         REPORTS_DIR.mkdir(parents=True, exist_ok=True)
         out = REPORTS_DIR / f"trends_{date.today().isoformat()}.md"
         out.write_text(content, encoding="utf-8")
@@ -79,7 +79,7 @@ def _graph():
 
 def run(task: str = "", task_id: int | None = None, workspace: str = "default") -> dict:
     try:
-        result = _graph().invoke({"task": task or "تحليل السوق", "run_id": task_id, "progress": []},
+        result = _graph().invoke({"task": task or "market analysis", "run_id": task_id, "progress": []},
                                  config={"recursion_limit": 12})
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "error": str(e), "task_id": task_id}
@@ -91,9 +91,9 @@ def run(task: str = "", task_id: int | None = None, workspace: str = "default") 
 
 register(DepartmentSpec(
     key="books.market", sector="books",
-    title_ar="الكتب — مشرف السوق", title_en="Books — Market Supervisor",
-    description_ar="يمسح Trends ومنافسة Etsy ويصدر تقرير فرصة بالعربية",
-    description_en='Google Trends + public Etsy scan → Arabic opportunity report',
+    title_ar="Books — Market Supervisor", title_en="Books — Market Supervisor",
+    description_ar="Tracks Trends + Etsy, then emits an opportunity report in English.",
+    description_en='Google Trends + public Etsy scan → English opportunity report',
     capabilities=["google_trends", "etsy_competition", "market_report"],
     allowed_tools=["web_research"],
     approval_policy="none",

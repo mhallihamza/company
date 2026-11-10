@@ -4,110 +4,72 @@ Graph (agents/ceo/graph.py) and llm.py import from here — NO inline keyword li
 
 Matching rules:
   * Latin: word-boundary matching (case-insensitive).
-  * Arabic: tokenized + normalized (strip diacritics, unify alef/hamza/taa marbuta).
-  * French: word-boundary, case-insensitive.
+  * French: word-boundary matching (case-insensitive).
 
-Ambiguous terms are removed (e.g. 'تابع', 'qa' as substring) — they matched unrelated tokens.
-Unmatched input or multiple equally-strong matches → structured result with confidence=0
-and an `alternatives` list, never a guess.
+Unmatched input or equally-strong multiple matches → structured result with
+confidence=0 and an `alternatives` list, never a guess.
 """
 from __future__ import annotations
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 _WORD = re.compile(r"\b[A-Za-zÀ-ÖØ-öø-ÿ][\w'’-]*\b", re.UNICODE)
-_ARAB = re.compile(r"[\u0600-\u06FF]+")
-_FR = re.compile(r"\b[A-Za-zÀ-ÖØ-öø-ÿ][\w'’-]*\b", re.UNICODE)
-
-# Arabic normalization — strip diacritics + unify alef/hamza/taa marbuta/ya
-_AR_NORMALIZE = str.maketrans({
-    "أ": "ا", "إ": "ا", "آ": "ا",
-    "ؤ": "و", "ئ": "ي",
-    "ة": "ه",
-    "ى": "ي",
-    "\u064B": None, "\u064C": None, "\u064D": None,   # fathatan dammatan kasratan
-    "\u064E": None, "\u064F": None, "\u0650": None,   # fatha, damma, kasra
-    "\u0651": None, "\u0652": None,                   # shadda, sukun
-})
-
-
-def _tokens_ar(text: str) -> list[str]:
-    raw = _ARAB.findall(text.translate(_AR_NORMALIZE))
-    tokens = list(raw)
-    for t in raw:
-        if t.startswith("ال") and len(t) > 3:  # definite article / proclisis
-            tokens.append(t[2:])
-    return tokens
-
-
-def _tokens_lat(text: str) -> list[str]:
-    return _WORD.findall(text.lower())
 
 
 @dataclass(frozen=True)
 class RouteRule:
     key: str                       # department key
     en: tuple[str, ...]
-    ar: tuple[str, ...]
     fr: tuple[str, ...]
-    phrases: tuple[str, ...] = ()  # multi-word phrases (en+fr+ar mixed), matched verbatim case-insensitively
+    phrases: tuple[str, ...] = ()  # multi-word phrases, matched verbatim (case-insensitive)
     specificity: int = 50
 
 
 RULES: tuple[RouteRule, ...] = (
     RouteRule("affiliate",
               en=("affiliate", "commission", "association", "partner program"),
-              ar=("عموله", "بالعموله", "لعموله", "رابط الايجاد", "عمولات"),
               fr=("affiliation", "affilier", "affilié", "commission", "programme d'affiliation"),
               specificity=100),
 
     RouteRule("qa",
               en=("qa", "quality", "inspection", "preflight", "compliance", "audit"),
-              ar=("جوده", "فحص", "امتثال", "تدقيق", "تفتيش", "مراقبه", "ضبط الجوده"),
               fr=("qa", "qualité", "contrôle", "conformité", "audit", "inspection"),
               specificity=90),
 
     RouteRule("finance",
               en=("finance", "fees", "margin", "profit", "price", "pricing", "cost"),
-              ar=("رسوم", "هامش", "ربح", "ربحيه", "عائد", "تكلفه", "سعر", "ربحية"),
               fr=("financier", "marge", "bénéfice", "prix", "coût"),
               specificity=80),
 
     RouteRule("marketing",
               en=("marketing", "seo", "pinterest", "social media", "listing"),
-              ar=("تسويق", "تسويقيه", "سوق", "كلمات مفتاحيه"),
               fr=("marketing", "seo", "pinterest", "réseau social"),
               specificity=70),
 
     RouteRule("intelligence",
               en=("intelligence", "opportunity", "niche", "trend", "research"),
-              ar=("فرص", "فرصه", "نيش", "توجه", "ابحث", "دراسة"),
               fr=("intelligence", "opportunité", "niche", "tendance"),
               specificity=60),
 
     RouteRule("books.market",
               en=("competitor", "bestseller", "niche"),
-              ar=("السوق", "منافس", "سوق", "نيش"),
               fr=("concurrent", "niche", "marché"),
               specificity=50,
-              phrases=("book market", "marché du livre", "marché livre", "سوق الكتب", "سوق الكتاب")),
+              phrases=("book market", "marché du livre", "marché livre")),
 
     RouteRule("books.publishing",
               en=("publish", "etsy", "kdp", "listing", "upload"),
-              ar=("انشر", "نشر", "ارفع", "قائمه", "نشره"),
               fr=("publier", "etsy", "kdp", "mettre en ligne"),
               specificity=40),
 
     RouteRule("books.content",
               en=("story", "content", "write", "author"),
-              ar=("قصه", "محتوى", "اكتب", "كتابه", "حكايه", "ألف"),
               fr=("histoire", "écrit", "contenu", "roman"),
               specificity=30),
 
     RouteRule("product",
               en=("product", "candidate", "concept"),
-              ar=("مرشح", "منتج", "مفهوم"),
               fr=("produit", "candidat", "concept"),
               specificity=20),
 )
@@ -115,26 +77,25 @@ RULES: tuple[RouteRule, ...] = (
 _RULES_BY_KEY = {r.key: r for r in RULES}
 
 
+def _tokens_lat(text: str) -> list[str]:
+    return _WORD.findall(text.lower())
+
+
 def _find_matches(text: str) -> list[tuple[float, RouteRule, list[str]]]:
-    """Return matched rules with (total_weight, rule, matched_keys), sorted by weight desc."""
+    """Return matched rules with (weight, rule, matched_keys), sorted by weight desc."""
     lower = text.lower()
-    ar_tokens = _tokens_ar(text)
-    lat_tokens = _tokens_lat(lower)
-    tokens = lat_tokens + ar_tokens
+    tokens = _tokens_lat(lower)
 
     matches: list[tuple[float, RouteRule, list[str]]] = []
     for rule in RULES:
         hits: list[str] = []
         for kw in rule.en:
-            if kw.lower() in lat_tokens:
-                hits.append(kw)
-        for kw in rule.ar:
-            if kw in ar_tokens:
+            if kw.lower() in tokens:
                 hits.append(kw)
         for kw in rule.fr:
-            if kw.lower() in lat_tokens:
+            if kw.lower() in tokens:
                 hits.append(kw)
-        # phrase match (case-insensitive substring with word boundaries on both ends)
+        # phrase match (case-insensitive, word boundaries on both ends)
         for p in rule.phrases:
             if p and p.lower() in lower:
                 if re.search(rf"\b{re.escape(p)}\b", lower):
@@ -142,7 +103,6 @@ def _find_matches(text: str) -> list[tuple[float, RouteRule, list[str]]]:
         hits = sorted(set(h.lower() for h in hits))
         if not hits:
             continue
-        # weight = specificity of the rule; matched-by-token beats matched-by-phrase only with tokens
         weight = rule.specificity
         matches.append((weight, rule, hits))
     matches.sort(key=lambda x: (-x[0], -x[1].specificity))
@@ -165,7 +125,7 @@ def route_keywords(task: str) -> dict[str, Any]:
             "matches": [{"department": m[1].key, "weight": m[0], "hits": m[2]} for m in matches],
         }
     best = matches[0]
-    # confidence scales with the gap to runner-up
+    # confidence scales with the gap to the runner-up
     rest_max = matches[1][0] if len(matches) > 1 else 0
     confidence = (best[0]) / (best[0] + rest_max + 1.0)
     return {
@@ -178,7 +138,7 @@ def route_keywords(task: str) -> dict[str, Any]:
 
 def route_llm(task: str, valid_keys: list[str] | None = None):
     """LLM-constrained classification with keyword fallback."""
-    import re
+    import re as _re
     import json
     from agents.llm import get_chat_model
     from langchain_core.messages import HumanMessage, SystemMessage
@@ -194,7 +154,7 @@ def route_llm(task: str, valid_keys: list[str] | None = None):
     )
     raw = model.invoke([SystemMessage(content=sys), HumanMessage(content=task)]).content
     try:
-        picked = json.loads(re.search(r"\{.*?\}", str(raw), re.S).group(0))["department"]
+        picked = json.loads(_re.search(r"\{.*?\}", str(raw), _re.S).group(0))["department"]
     except Exception:  # noqa: BLE001
         picked = None
     if picked in valid:

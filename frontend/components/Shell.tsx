@@ -109,7 +109,7 @@ export default function Shell({ title, subtitle, actions, children }: {
   title: string; subtitle?: string; actions?: React.ReactNode; children: React.ReactNode;
 }) {
   const pathname = usePathname() ?? "";
-  const { lang, toggle, t } = useLang();
+  const { t } = useLang();
 
   return (
     <div className="flex min-h-screen">
@@ -165,11 +165,6 @@ export default function Shell({ title, subtitle, actions, children }: {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <span className="badge badge-teal !text-[10px] mono hidden sm:inline-flex">FOUNDER</span>
-            <button onClick={toggle}
-              className="rounded-lg border border-[color:var(--line)] px-3 py-1.5 text-[11px] font-semibold hover:bg-white/5 transition-colors"
-              aria-label="Toggle language">
-              {lang === "en" ? "AR — العربية" : "EN — English"}
-            </button>
           </div>
         </header>
 

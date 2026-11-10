@@ -1,13 +1,12 @@
 "use client";
 
 /**
- * Held in localStorage as `lang` = "en" | "ar".
- * Default is English — the user's spec. Arabic is one click away in the sidebar.
- * Language switch flips <html dir> so RTL/LTR layouts follow the user.
+ * The app is English-only (Arabic/RTL was removed by founder request).
+ * `useLang()` keeps the same shape for callers but always reports "en".
  */
 import { useCallback, useEffect, useState } from "react";
 
-export type Lang = "en" | "ar";
+export type Lang = "en";
 
 const dict = {
   en: {
@@ -44,7 +43,7 @@ const dict = {
     "profiles.disabled": "Disabled",
     "profiles.toggle": "Toggle",
     "profiles.empty": "No profiles yet",
-    "profiles.note": "UI stays EN default + one-click AR. FR profile runs the engine in French (seed keywords, story prompts, calendar).",
+    "profiles.note": "UI is English-only. The fr-fr profile runs the engine in French (seed keywords, story prompts, calendar).",
     "nav.approvals": "Approvals",
     "nav.reports": "Reports",
     "nav.observability": "Observability",
@@ -231,253 +230,25 @@ const dict = {
     "policy.human_required": "human required",
     "policy.gate": "gate",
   },
-  ar: {
-    "brand.name": "AI Business HQ",
-    "brand.tagline": "نظام تشغيل الشركة بالذكاء الاصطناعي",
-    "brand.live": "النظام يعمل — البحث والمحادثة حيّان",
-    "brand.gate": "كل إجراء خارجي بانتظار موافقتك",
-
-    "nav.dashboard": "المركز",
-    "nav.ceo": "محادثة CEO",
-    "nav.departments": "الأقسام",
-    "nav.agents": "بطاقات الوكلاء",
-    "nav.capabilities": "القدرات",
-    "nav.books": "الكتب",
-    "nav.products": "المنتجات",
-    "nav.opportunities": "الفرص",
-    "nav.profiles": "الأسواق",
-    "nav.approvals": "الموافقات",
-    "nav.reports": "التقارير",
-    "nav.observability": "المراقبة",
-    "nav.settings": "الإعدادات",
-    "profiles.title": "ملفات الأسواق — نماذج الرسوم والتعريب",
-    "profiles.subtitle": "كل ملف يقود الاستكشاف وحساب الرسوم وطباعة الكتاب. موثّق = مصدر مرجعي بتاريخ مراجعة. جزئي = غير موثّق ولا تُقتبس أرقام.",
-    "profiles.verified": "رسوم موثّقة",
-    "profiles.partial": "جزئي — الرسوم غير موثّقة",
-    "profiles.seeds": "كلمات البذرة",
-    "profiles.seasonal": "التقويم الموسمي",
-    "profiles.font": "الخط",
-    "profiles.direction": "الاتجاه",
-    "profiles.fee_model": "نموذج الرسوم",
-    "profiles.qa": "قواعد الجودة",
-    "profiles.prompt": "موجّه القصة",
-    "profiles.lead_weeks": "تسبيق",
-    "profiles.enabled": "مفعّل",
-    "profiles.disabled": "موقوف",
-    "profiles.toggle": "تبديل",
-    "profiles.empty": "لا توجد ملفات بعد",
-    "profiles.note": "الواجهة تبقى إنجليزية افتراضياً مع زر عربي بضغطة واحدة. ملف فرنسا يشغّل المحرك بالفرنسية (بذور وموجّهات وتقويم).",
-
-    "common.loading": "جارٍ التحميل…",
-    "common.failed": "فشل",
-    "common.empty": "لا يوجد شيء بعد",
-    "common.hint": "تلميح",
-    "common.run": "تنفيذ",
-    "common.save": "حفظ",
-    "common.approve": "اعتمد",
-    "common.reject": "ارفض",
-    "common.download": "تحميل",
-    "common.clear": "مسح",
-
-    "dash.title": "المركز — AI Business",
-    "dash.subtitle": "نبض الشركة عبر الأقسام العشرة",
-    "dash.ceo_card_badge": "🤵 CEO — يوجّه الأقسام",
-    "dash.ceo_headline": "«صباح الخير. تقرير الفرص على الطاولة — اطلع على الفرص والموافقات.»",
-    "dash.ceo_sub": "أنت تُكلّف — الـ CEO يوجّه للقسم المناسب ويعود إليك بقرارات تحتاج موافقتك.",
-    "dash.ceo_cta": "افتح محادثة الـ CEO ←",
-    "dash.system_status": "حالة النظام",
-    "dash.connected": "● متصل",
-    "dash.llm": "🧠 النموذج",
-    "dash.db": "🗄️ قاعدة البيانات",
-    "dash.kpi_tasks": "المهام",
-    "dash.kpi_executions": "مرات التنفيذ",
-    "dash.kpi_opportunities": "فرص مسجلة",
-    "dash.kpi_books": "كتب/منتجات",
-    "dash.kpi_published": "منشورة",
-    "dash.kpi_pending": "بانتظار موافقتك",
-    "dash.approvals": "⏳ موافقات معلقة",
-    "dash.approvals_empty": "لا موافقات معلقة — اللوحة نظيفة ✅",
-    "dash.audit": "🛰️ آخر العمليات",
-    "dash.command_eyebrow": "مركز القيادة — نبض الشركة",
-    "dash.headline": "مؤسسة واحدة. شركة ذكاء اصطناعي كاملة بانتظارك.",
-    "dash.sub": "اعتمد الطابور، انشر كتاباً، أو اطلب من الـ CEO إدارة الأرضية — الشركة كلها في شاشة واحدة.",
-    "dash.review_approvals": "مراجعة الموافقات",
-    "dash.system_pulse": "نبض النظام",
-    "dash.db_row": "قاعدة البيانات",
-    "dash.llm_row": "النموذج",
-    "dash.autonomy_row": "وضع الاستقلالية",
-    "dash.etsy_row": "Etsy",
-    "dash.etsy_ready": "جاهز",
-    "dash.etsy_missing": "غير مهيأ",
-    "dash.kpi_success": "معدل النجاح",
-    "dash.kpi_success_hint": "عبر كل المهام",
-    "dash.kpi_lifetime": "الإجمالي",
-    "dash.your_queue": "طابورك",
-    "dash.your_queue_hint": "بانتظار قرارك",
-    "dash.ops_feed": "سجل العمليات",
-    "dash.quick_actions": "إجراءات سريعة",
-    "dash.action_market": "افحص السوق",
-    "dash.action_story": "اكتب قصة",
-    "dash.action_opps": "الفرص",
-    "dash.action_markets": "إدارة الأسواق",
-    "dash.action_reports": "افتح التقارير",
-    "dash.action_obs": "المراقبة",
-    "dash.queue_all_clear": "لا شيء بانتظار قرارك. الأرضية لك — كلّف الـ CEO بمهمة.",
-    "dash.operational": "يعمل",
-    "dash.brand_internal": "يعمل بإدارة المؤسس",
-    "nav.group_company": "الشركة",
-    "nav.group_output": "المخرجات",
-    "nav.group_system": "النظام",
-
-    "ceo.title": "تحدث إلى الـ CEO — اكلّف وهو يوزّع",
-    "ceo.subtitle": "توجيه حتمي، صدق بلا هلوسة، موافقتك قبل أي أثر خارجي",
-    "ceo.placeholder": "اكتب طلبك… مثال: حلل سوق كتب الأطفال",
-    "ceo.send": "إرسال",
-    "ceo.examples": "مهام جاهزة",
-    "ceo.autonomy": "وضع الاستقلالية",
-    "ceo.rules": "قواعد الـ CEO",
-    "ceo.rule_1": "لا إجراء خارجي دون موافقتك",
-    "ceo.rule_2": "لا أرقام مبيعات مفبركة أبداً",
-    "ceo.rule_3": "كل تشغيلة موثقة في audit_logs",
-    "ceo.rule_4": "النموذج لا يحسب المال — Python فقط",
-    "ceo.boss_direct_1": "الدور",
-    "ceo.boss_direct_2": "المستوى",
-
-    "dept.title": "الأقسام — نظام واحد متخصصون",
-    "dept.subtitle": "كل قسم = مشرف LangGraph + وكلاء مستقلون + أدوات مسموحة فقط",
-    "dept.run": "▶ نفّذ",
-    "dept.running": "القسم يشتغل…",
-    "dept.placeholder": "تكليف للقسم (اختياري)…",
-    "dept.tools_allowed": "الأدوات المسموحة",
-    "dept.cap_limit": "سقف الميزانية",
-
-    "agents.title": "بطاقات الوكلاء — كل متخصص في الشركة",
-    "agents.subtitle": "من يفعل ماذا، وبأي نموذج، ومن يملكه من الأقسام",
-    "agents.tier_reasoning": "نموذج قوي",
-    "agents.tier_fast": "نموذج اقتصادي",
-    "agents.tier_deterministic": "حتمي (Python)",
-    "agents.approval": "موافقة",
-
-    "caps.title": "القدرات — وحدات مشتركة تستدعيها الأقسام",
-    "caps.subtitle": "تنفيذ واحد، عدة مستعملين — تُعلن عند تسجيل كل قسم",
-    "caps.used_by": "مستخدمة من",
-    "caps.deterministic": "حتمية",
-    "caps.llm": "بمساعدة نموذج",
-
-    "books.title": "الكتب — من الفكرة إلى النشر",
-    "books.subtitle": "قصة ← مراجعة ← صور ← PDF ← فحص ← طلب موافقة ← نشر (بعد موافقتك)",
-    "books.new": "قصة جديدة",
-    "books.new_placeholder": "فكرة القصة… مثال: سلحفاة تعشق الرسم",
-    "books.write": "اكتب القصة",
-    "books.building": "يبني…",
-    "books.check": "🛡 فحص الجودة",
-    "books.build": "📐 ابنِ الكتاب",
-    "books.publish_request": "✋ اطلب موافقة النشر",
-    "books.empty": "لا كتب بعد",
-    "books.empty_hint": "اكتب فكرتك بالأعلى — سيكتب الـ CEO القصة ويسجّل المنتج.",
-    "books.pdf": "📄 PDF",
-
-    "products.title": "المنتجات — خط الإنتاج",
-    "products.subtitle": "فرصة ← مرشح ← قصة ← PDF ← فحص ← معتمد ← منشور — دورة حياة واحدة",
-    "products.pursuing": "مرشحو المتابعة",
-    "products.pursuing_sub": "الفرص التي اخترت متابعتها — ابدأ إنتاجها من تبويب الكتب.",
-    "products.pipeline": "خط إنتاج الكتب",
-    "products.pipeline_sub": "كل منتج كتاب يمر بهذه المراحل تلقائياً.",
-    "products.empty_candidates": "لا مرشحات بعد — وقّع «نتابعها» على فرصة لتظهر هنا.",
-    "products.empty_pipeline": "لا كتب في الخط — اكتب فكرة في تبويب الكتب.",
-
-    "opps.title": "الفرص — تُسجَّل، لا تُدَّعى",
-    "opps.subtitle": "درجات محسوبة من إشارات حقيقية — تقديرات لا ضمانات ربح",
-    "opps.sector_all": "كل القطاعات",
-    "opps.status_all": "كل الحالات",
-    "opps.empty": "لا فرص مسجلة بعد",
-    "opps.empty_hint": "نفّذ «مسح الفرص» من الأقسام لتُملأ هذه اللوحة.",
-    "opps.pursuing": "🎯 نتابعها",
-    "opps.watching": "👀 مراقبة",
-    "opps.archived": "🗄️ أرشفة",
-    "opps.score": "الدرجة",
-
-    "approvals.title": "الموافقات — بوابتك قبل أي أثر خارجي",
-    "approvals.subtitle": "لا يُنشر شيء بلا قرارك — وكلا النتيجتين تُسجلان",
-    "approvals.pending": "بانتظار قرارك",
-    "approvals.empty": "لا موافقات معلقة",
-    "approvals.empty_hint": "طلبات النشر أو التشغيل اليدوي تظهر هنا أولاً.",
-    "approvals.approve": "✅ اعتمد ونفّذ",
-    "approvals.reject": "❌ ارفض",
-    "approvals.note": "ملاحظة لسجل التدقيق (اختياري)…",
-    "approvals.history": "سجل القرارات",
-    "approvals.approved": "معتمد",
-    "approvals.rejected": "مرفوض",
-
-    "reports.title": "التقارير — كل تشغيلة موثقة",
-    "reports.subtitle": "تقارير السوق وذكاء السوق وQA — تحفظ كلها وقابلة للتحميل",
-    "reports.empty": "لا تقارير بعد",
-    "reports.empty_hint": "شغّل أي قسم وستظهر مخرجاته هنا.",
-    "reports.select": "اختر تقريراً للمعاينة",
-    "reports.none": "(لا محتوى نصي — ملف ثنائي فقط)",
-
-    "obs.title": "المراقبة — الحقيقة كما في قاعدة البيانات",
-    "obs.subtitle": "تنفيذ ونجاح ورموز وتوكنات وموافقات — تُقاس، لا تُخمّن",
-    "obs.executions": "مرات التنفيذ",
-    "obs.success_rate": "معدل النجاح",
-    "obs.tokens": "التوكنات (المقاسة)",
-    "obs.tokens_unmeasured": "غير مقاسة (المزود لم يُرجعها)",
-    "obs.tokens_source": "المصدر",
-    "obs.budget_estimate": "0.15$ ثابتة لكل مهمة منتهية — تقدير، لا قياس",
-    "obs.executions_with_data": "تنفيذات تحتوي قياسات توكنات",
-    "obs.needs_you": "بانتظارك",
-    "obs.by_department": "المهام حسب القسم",
-    "obs.by_agent": "التنفيذ حسب الوكيل",
-    "obs.approvals_breakdown": "تفاصيل الموافقات",
-    "obs.recent_tasks": "المهام الأخيرة",
-    "obs.audit_feed": "سجل التدقيق",
-    "obs.no_data": "لا توجد حركة بعد — نفّذ شيئاً من الأقسام أو CEO Chat",
-
-    "settings.title": "الإعدادات — اضبط الشركة لا النموذج",
-    "settings.subtitle": "الاستقلالية، المفاتيح، التدقيق — الأسرار في .env فقط",
-    "settings.autonomy": "مستوى الاستقلالية",
-    "settings.keys": "المفاتيح والمنافذ",
-    "settings.model": "🧠 النموذج",
-    "settings.db": "🗄️ قاعدة البيانات",
-    "settings.scheduler": "⏰ المجدول الصباحي (08:00)",
-    "settings.scheduler_on": "مفعّل",
-    "settings.scheduler_off": "متوقف",
-    "settings.clear_token": "🧹 امسح رمز المؤسس من هذا المتصفح",
-    "settings.audit": "🛰️ سجل التدقيق — آخر الإدخالات",
-
-    "agents.tier": "الفئة",
-    "policy.none": "حر",
-    "policy.story_review": "مراجعة القصة",
-    "policy.content_gate": "قبل النشر",
-    "policy.human_required": "يجب موافقتك",
-    "policy.gate": "بوابة",
-  },
 } as const;
 
 export type DictKey = keyof (typeof dict)["en"];
 
 export function getInitialLang(): Lang {
   if (typeof window === "undefined") return "en";
-  const v = localStorage.getItem("lang");
-  return v === "ar" ? "ar" : "en";
+  // app is English-only; legacy saved "ar" values are ignored
+  return "en";
 }
 
-/** React hook — language state synced to <html dir>. */
+/** React hook — the app is English-only (RTL/Arabic was removed by founder request). */
 export function useLang() {
   const [lang, setLang] = useState<Lang>("en");
-  useEffect(() => { setLang(getInitialLang()); }, []);
   useEffect(() => {
     if (typeof document === "undefined") return;
-    document.documentElement.lang = lang === "ar" ? "ar" : "en";
-    document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
-  }, [lang]);
-  const toggle = useCallback(() => {
-    setLang((l) => {
-      const next = l === "en" ? "ar" : "en";
-      localStorage.setItem("lang", next);
-      return next;
-    });
+    document.documentElement.lang = "en";
+    document.documentElement.dir = "ltr";
   }, []);
-  const t = useCallback((k: DictKey) => dict[lang][k] ?? dict.en[k] ?? k, [lang]);
+  const t = useCallback((k: DictKey) => dict.en[k] ?? k, []);
+  const toggle = useCallback(() => {}, []);   // English-only — no toggle
   return { lang, toggle, t };
 }

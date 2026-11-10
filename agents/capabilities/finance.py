@@ -45,8 +45,8 @@ def unit_economics(price: float, pages: int, item: str = "book") -> dict:
 from agents.capabilities import CapabilitySpec, register_capability
 register_capability(CapabilitySpec(
     id="unit_economics",
-    title_en="Unit Economics", title_ar="حسابات الوحدة",
+    title_en="Unit Economics", title_ar="Unit Economics",
     description_en="Verified Etsy fees (listing + 6.5% + 3% + $0.25) and KDP royalties (50/60% by price, print cost by page count). All rules carry source_url and last_reviewed.",
-    description_ar="رسوم Etsy المعتمدة والـ royalty في KDP حسب السعر، بصفحتين تُطبق بشكل حقيقي. كل قاعدة تحمل source_url وتاريخ آخر مراجعة.",
+    description_ar="Verified Etsy fees and KDP royalties by price. Every rule carries source_url + last_reviewed.",
     used_by=["finance", "affiliate"], deterministic=True,
 ))

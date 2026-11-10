@@ -13,7 +13,7 @@ def run() -> dict:
     for key in ("intelligence", "affiliate"):
         spec = DEPARTMENTS.get(key)
         if spec:
-            out = spec.run("البحث الصباحي التلقائي", task_id=None)
+            out = spec.run("morning auto scan", task_id=None)
             results.append({"department": key, "ok": out.get("ok"), "summary": out.get("summary")})
     svc.audit(None, "scheduler", "daily_research",
               f"{len(results)} department(s) finished")

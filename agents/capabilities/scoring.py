@@ -14,11 +14,11 @@ def score_candidate(c: dict) -> dict:
     comp = str(c.get("competition", "unknown")).lower()
     risks: list[str] = []
     if comp == "high":
-        risks.append("منافسة عالية")
+        risks.append("high competition")
     if cookie <= 7:
-        risks.append("نافذة روابط قصيرة")
+        risks.append("short link window")
     if demand in ("low", "unknown"):
-        risks.append("طلب ضعيف أو غير مؤكد")
+        risks.append("weak or unproven demand")
     score = max(0.0, min(10.0,
         DEMAND_SCORE.get(demand, 5.0) * 0.35
         + COMPETITION_SCORE.get(comp, 5.0) * 0.25
@@ -33,8 +33,8 @@ def score_candidate(c: dict) -> dict:
 from agents.capabilities import CapabilitySpec, register_capability
 register_capability(CapabilitySpec(
     id="opportunity_scoring",
-    title_en="Opportunity Scoring", title_ar="تسجيل الفرص",
+    title_en="Opportunity Scoring", title_ar="Opportunity Scoring",
     description_en="Documented deterministic scoring (0-10) combining demand, competition, commission and cookie window.",
-    description_ar="تسجيل مرجعي موثق (0-10) يجمع الطلب والمنافسة والعمولة ونافذة الرابط.",
+    description_ar="Documented 0-10 score combining demand, competition, commission, cookie window.",
     used_by=["affiliate", "intelligence", "product"], deterministic=True,
 ))

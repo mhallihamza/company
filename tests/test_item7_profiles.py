@@ -73,12 +73,12 @@ def test_kdp_model_never_reports_fee_deductions():
 
 # ---------- localization ----------
 
-def test_arabic_profile_is_rtl():
-    from agents.localization import get_language_profile, font_path_for
-    profile = get_language_profile("ar")
-    assert profile.text_direction == "rtl"
-    assert profile.qa_ruleset_ref == "qa.ar"
-    assert font_path_for("font.amiri").exists()
+def test_unknown_language_fails_fast():
+    from agents.localization import get_language_profile, UnsupportedLanguage
+    with pytest.raises(UnsupportedLanguage):
+        get_language_profile("de")
+    with pytest.raises(UnsupportedLanguage):
+        get_language_profile("ar")   # Arabic support removed by founder request
 
 
 def test_fr_and_en_are_ltr_with_latin_font():
@@ -91,15 +91,8 @@ def test_fr_and_en_are_ltr_with_latin_font():
 
 def test_story_prompts_are_language_native():
     from agents.localization import get_story_prompt
-    assert "Arabic" in get_story_prompt("ar", "idea", 12) or "بالعربية" in get_story_prompt("ar", "idea", 12)
-    assert "française" in get_story_prompt("fr", "idée", 12).lower() or "enfants" in get_story_prompt("fr", "idée", 12)
     assert "English" in get_story_prompt("en", "idea", 12)
-
-
-def test_unknown_language_fails_fast():
-    from agents.localization import get_language_profile, UnsupportedLanguage
-    with pytest.raises(UnsupportedLanguage):
-        get_language_profile("de")
+    assert "française" in get_story_prompt("fr", "idée", 12).lower() or "enfants" in get_story_prompt("fr", "idée", 12)
 
 
 # ---------- profiles seeding + engine ----------
@@ -120,8 +113,8 @@ def test_seed_produces_new_columns(tmp_env):
     cal = json.loads(us["seasonal_calendar"])
     assert all("lead_weeks" in ev for ev in cal)
     assert any(ev["name"] == "back_to_school" for ev in cal)
-    sa = by_key[("SA", "ar")]
-    assert sa["text_direction"] == "rtl" and sa["fee_model_ref"] == "etsy.global"
+    sa = by_key[("SA", "en")]
+    assert sa["text_direction"] == "ltr" and sa["fee_model_ref"] == "etsy.global"
 
 
 def test_list_profiles_exposes_fee_badge(tmp_env, monkeypatch):
@@ -135,7 +128,7 @@ def test_list_profiles_exposes_fee_badge(tmp_env, monkeypatch):
     rows = {(x["country"], x["language"]): x for x in r.json()}
     assert rows[("US", "en")]["fee_verified"] is True
     assert rows[("FR", "fr")]["fee_verified"] is False
-    assert rows[("SA", "ar")]["fee_verified"] is False
+    assert rows[("SA", "en")]["fee_verified"] is False
 
 
 def test_engine_skips_disabled_market(tmp_env, monkeypatch):
@@ -163,7 +156,8 @@ def test_engine_unknown_market_fails_fast(tmp_env, monkeypatch):
     assert "no enabled market profile" in out["error"]
 
 
-def test_qa_arabic_rules_wired():
+def test_qa_rules_wired():
     from agents.capabilities.qa import check_product
     from agents.localization import QA_RULES
-    assert QA_RULES["ar"] and QA_RULES["fr"]
+    assert QA_RULES["en"] and QA_RULES["fr"]
+    assert "ar" not in QA_RULES   # English-only product (founder request)

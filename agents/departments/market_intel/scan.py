@@ -154,8 +154,8 @@ def run(task: str = "", task_id: int | None = None, workspace: str = "default") 
 
 register(DepartmentSpec(
     key="intelligence", sector="intelligence",
-    title_ar="ذكاء السوق", title_en="Market Intelligence",
-    description_ar="مسح نيشات الكتب وتسجيل فرص مقيّمة قابلة للفرز في قاعدة البيانات",
+    title_ar="Market Intelligence", title_en="Market Intelligence",
+    description_ar="Scans niche markets, ranks opportunities by score and saves a sortable report.",
     description_en='Scan niche baskets → scored, trackable opportunities in the DB',
     capabilities=["multi_niche_scan", "opportunity_scoring"],
     allowed_tools=["web_research"],

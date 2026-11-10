@@ -18,7 +18,7 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, System
 from langchain_core.outputs import ChatGeneration, ChatResult
 
 _note_lock = threading.Lock()
-_last_note = "لم يُستخدم النموذج بعد"
+_last_note = "model not used yet"
 
 # ---- token usage accounting (measured from provider metadata when available) ----
 _usage_lock = threading.Lock()
@@ -165,28 +165,28 @@ def _orch(text: str) -> str:
 
 
 def _story_json(text: str) -> str:
-    idea = (re.search(r"IDEA:\s*(.+)", text) or re.search(r"اكتب\s+(.+)", text))
-    title = idea.group(1).strip()[:60] if idea else "قصة عجيبة"
+    idea = (re.search(r"IDEA:\s*(.+)", text) or re.search(r"[Ww]rite\s+(.+)", text))
+    title = idea.group(1).strip()[:60] if idea else "A Little Adventure"
     return json.dumps({
-        "title": f"قِصّة {title}",
-        "character_sheet": "طفل صغير لطيف بملابس ملونة وأسلوب رسوم دافئة",
+        "title": f"The Story of {title}",
+        "character_sheet": "A small kind child in colorful clothes, warm cartoon style",
         "style": "soft watercolor children's book illustration, rounded shapes",
-        "pages": [{"text": f"في الصفحة {i+1}: مغامرة صغيرة مليئة بابتسامة.",
+        "pages": [{"text": f"On page {i+1}: a small adventure full of smiles.",
                    "image_prompt": f"scene {i+1} for {title}, warm watercolor"}
                   for i in range(12)],
-        "etsy": {"title": f"{title} — Arabic Kids Story Book",
-                 "description": "قصة أطفال مصوّرة بالعربية بقيم إيجابية وازدراء.",
-                 "tags": ["arabic kids book", "قصص أطفال", "arabic story"][:13]},
+        "etsy": {"title": f"{title} — English Kids Story Book",
+                 "description": "Illustrated children's story book with positive values.",
+                 "tags": ["english kids book", "children story book", "kids english book"][:13]},
     }, ensure_ascii=False)
 
 
 def _affiliate_scout(text: str) -> str:
     return json.dumps({
         "candidates": [
-            {"product": "كتب أطفال قصص عربية بسعر مناسب", "est_price": 12.0,
+            {"product": "Children's English story books at budget price", "est_price": 12.0,
              "commission": 8.0, "cookie_days": 14, "demand": "high", "competition": "medium",
              "program_hint": "Amazon Associates"},
-            {"product": "Arbeitsheft Arabisch Alphabet",
+            {"product": "English alphabet workbook for kids",
              "est_price": 9.5, "commission": 10.0, "cookie_days": 30,
              "demand": "rising", "competition": "low",
              "program_hint": "impact.com"},
@@ -229,11 +229,11 @@ _ROLES = {
     # the agents
     "story_writer": _story_json,
     "report_writer": lambda t: (
-        "### تقرير اتجاهات كتب الأطفال (وضع تجريبي)\n\n"
-        "- تلوين حيوانات 3-6: طلب صاعد، منافسة متوسطة — درجة 7.2/10\n"
-        "- أبجديتي العربية المصوّرة: طلب ثابت، منافسة منخفضة — درجة 7.0/10\n"
-        "- قصص قبل النوم: طلب عالي، منافسة عالية — درجة 6.0/10\n\n"
-        "تنبيه: تحليل تجريبي؛ للإنتاج الحقيقي تحتاج مفاتيح Google Trends/Etsy."),
+        "### Children's-book trends report (demo mode)\n\n"
+        "- Coloring animals (ages 3-6): rising demand, medium competition — score 7.2/10\n"
+        "- Alphabet workbook (English): steady demand, low competition — score 7.0/10\n"
+        "- Bedtime stories: high demand, high competition — score 6.0/10\n\n"
+        "Note: this is a demo analysis. For production you need Google Trends / Etsy keys."),
     "intelligence.scorer": lambda t: json.dumps({
         "opportunities": [
             {"title": "DEMO — Coloring animals (test scaffold)", "niche": "coloring", "score": 7.5},
@@ -243,11 +243,11 @@ _ROLES = {
     }, ensure_ascii=False),
     "affiliate.scout": _affiliate_scout,
     "marketing.copywriter": lambda t: json.dumps({
-        "seo_keywords": ["arabic kids book", "arabic bedtime story", "كتب أطفال عربية"],
-        "description": "قصص مصوّرة بالعربية للأطفال من 3-6 سنوات بقيم إيجابية.",
-        "pinterest": ["بوستر القصة ومخططها", "وصية الآباء بالقراءة قبل النوم"],
-        "calendar": ["السبت: نشر بوستر", "الأربعاء: ملخص القصة"],
-        "disclaimer": "اقتراح محتوى يحتاج موافقتك قبل النشر",
+        "seo_keywords": ["english kids book", "kids bedtime story", "children story book"],
+        "description": "Illustrated children's story book with positive values.",
+        "pinterest": ["Story poster with summary", "Parents reading bedtime stories"],
+        "calendar": ["Saturday: post the poster", "Wednesday: story summary"],
+        "disclaimer": "Suggested content — needs your approval before publishing",
     }, ensure_ascii=False),
 }
 
@@ -311,10 +311,10 @@ def get_chat_model(temperature: float = 0.4, max_tokens: int = 4000) -> BaseChat
                                    temperature=temperature, max_tokens=max_tokens),
                 fallback=fake_llm())
     except ImportError:
-        _note(f"المزود {provider} غير مثبت → النمط الحتمي")
+        _note(f"provider {provider} not installed → deterministic mode")
         return fake_llm()
 
-    _note(f"مزود غير معروف {provider} → النمط الحتمي")
+    _note(f"unknown provider {provider} → deterministic mode")
     return fake_llm()
 
 
