@@ -1,5 +1,5 @@
-"""AI Business HQ — مدخل FastAPI الموحد.
-شغّل من جذر المشروع:
+"""AI Business HQ — unified FastAPI entry point.
+Run from the project root:
     .\\.venv\\Scripts\\uvicorn.exe backend.app.main:app --port 8700 --reload
 """
 from __future__ import annotations
@@ -59,7 +59,7 @@ for mod in (health, ceo, departments, books, opportunities, approvals, reports,
 
 
 def _maybe_scheduler() -> None:
-    """بوابة APScheduler: يشغّل daily_research كل يوم 08:00 عند تفعيلها في .env."""
+    """APScheduler gate: runs daily_research every day at 08:00 when enabled in .env."""
     if not config.FEATURE_SCHEDULER:
         return
     try:

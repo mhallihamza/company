@@ -1,14 +1,14 @@
-"""خدمات قاعدة البيانات — كل كتابات/قراءات الجدول من مكان واحد."""
+"""Database services — all table writes/reads in one place."""
 from __future__ import annotations
 import json
 from typing import Any, Optional
 
 from backend.app.db import get_store
 
-_ph = "%s"  # pg placeholder — _execute يستبدلها تلقائياً لـ sqlite
+_ph = "%s"  # pg placeholder — _execute swaps it automatically for sqlite
 
 
-# ---------------- تنفيذ عام ----------------
+# ---------------- general execution ----------------
 def q(sql: str, params: tuple = ()) -> list[dict]:
     return _store().q(sql, params)
 
@@ -18,14 +18,14 @@ def _store():
 
 
 def audit(task_id: int | None, actor: str, action: str, detail: str = "") -> bool:
-    """يسجل في audit_logs — يستحوذ على فشل الكتابة دون كسر المسار."""
+    """Log to audit_logs — swallows write failures without breaking the path."""
     try:
         get_store().audit(task_id, actor, action, detail)
         return True
     except Exception:  # noqa: BLE001
         return False
 
-# ---------------- فرص ----------------
+# ---------------- opportunities ----------------
 def add_opportunity(sector: str, title: str, niche: str, score: float,
                     payload: Optional[dict] = None, workspace: str = "default",
                     source: str = "demo", evidence: Optional[dict] = None) -> int:
@@ -68,7 +68,7 @@ def set_opportunity_status(opp_id: int, status: str) -> bool:
     return True
 
 
-# ---------------- منتجات ----------------
+# ---------------- products ----------------
 def upsert_product(slug: str, title: str, status: str | None = None,
                    pdf_path: str | None = None, cover_path: str | None = None,
                    final_file: str | None = None) -> int:
@@ -113,7 +113,7 @@ def get_product(slug: str) -> dict[str, Any] | None:
     return rows[0] if rows else None
 
 
-# ---------------- تقارير ----------------
+# ---------------- reports ----------------
 def add_report(path: str, title: str, content: str, kind: str = "md",
                source: str = "demo", evidence: Optional[dict] = None) -> int:
     s = _store()
@@ -133,7 +133,7 @@ def list_reports(limit: int = 60, workspace: str = "default") -> list[dict]:
         (workspace,))
 
 
-# ---------------- موافقات ----------------
+# ---------------- approvals ----------------
 def create_approval(kind: str, ref: str, note: str = "", workspace: str = "default") -> int:
     s = _store()
     sql = "INSERT INTO approvals (kind,ref,note,workspace_id) VALUES (?,?,?,?) RETURNING approval_id".replace(
@@ -166,7 +166,7 @@ def decide_approval(aid: int, decision: str, note: str = "") -> bool:
     return True
 
 
-# ---------------- مهام/تنفيذ ----------------
+# ---------------- tasks/executions ----------------
 def create_task(task_type: str, domain: str, ref: str | None,
                 input_text: str = "") -> int:
     s = _store()
@@ -219,7 +219,7 @@ def list_audit(limit: int = 100, workspace: str = "default") -> list[dict]:
         (workspace,))
 
 
-# ---------------- إعدادات ----------------
+# ---------------- settings ----------------
 def get_setting(key: str) -> str | None:
     rows = _store().q("SELECT value FROM settings WHERE key=?", (key,))
     return rows[0]["value"] if rows else None
@@ -241,7 +241,7 @@ def _execute_wrap(sql: str, params: tuple = ()) -> None:
         cur.execute(sql, params)
 
 
-# ---------------- حزمة / health ----------------
+# ---------------- bundle / health ----------------
 def counts() -> dict[str, int]:
     s = _store()
     def _scalar(sql: str) -> int:

@@ -1,9 +1,9 @@
-"""وحدة قاعدة البيانات — Postgres (Supabase) أو سقوط تلقائي إلى SQLite.
+"""Database module — Postgres (Supabase) with automatic fallback to SQLite.
 
-الجداول (بالضبط حسب البنية المطلوبة):
+Tables (exactly per the required schema):
   departments, agents, tasks, task_executions, opportunities, products,
-  reports, approvals, audit_logs, budgets, settings — كلها تحمل workspace_id.
-أي جدول يحمل workspace_id='default' الآن، ليستعد التعدد لاحقاً.
+  reports, approvals, audit_logs, budgets, settings — all carry workspace_id.
+Every table currently uses workspace_id='default', ready for multi-tenancy later.
 """
 from __future__ import annotations
 import contextlib
@@ -186,7 +186,7 @@ class Store:
         self.kind, self.backend_label, self.pg_diag = self._connect()
         self._ensure_schema()
 
-    # ---------- اتصال ----------
+    # ---------- connection ----------
     def _connect(self):
         backend = config.DB_BACKEND
         if backend in ("auto", "supabase") and config.DATABASE_URL:
@@ -308,7 +308,7 @@ class Store:
                 self._execute(
                     "INSERT INTO settings (key, value) VALUES ('autonomy_level', '1')")
 
-    # ---------- أدوات داخلية ----------
+    # ---------- internal helpers ----------
     @contextlib.contextmanager
     def _cur(self) -> Iterator[Any]:
         if self.kind == "pg":
@@ -349,7 +349,7 @@ class Store:
             return int(next(iter(row.values()), 0) or 0)
         return int(row[0] or 0)
 
-    # ========= مهام التحرير المباشرة (audit/tasks/executions) =========
+    # ========= direct-write tasks (audit/tasks/executions) =========
     def create_task(self, task_type: str, domain: str, ref: str | None,
                     input_text: str = "") -> int:
         sql = ("INSERT INTO tasks (type, domain, ref, input_text) "
@@ -395,7 +395,7 @@ class Store:
             cur.execute(sql, params)
             return [self._row_dict(r) for r in cur.fetchall()]
 
-    # ========= الاستعلام العام =========
+    # ========= generic query =========
     def q(self, sql: str, params: tuple = ()) -> list[dict]:
         return self._rows(sql, params)
 
@@ -416,9 +416,9 @@ def reset_store_for_tests() -> None:
         _store = None
 
 
-# تغطيات خدمة عالية المستوى
+# High-level service wrappers
 def audit(task_id: int | None, actor: str, action: str, detail: str = "") -> None:
     try:
         get_store().audit(task_id, actor, action, detail)
-    except Exception:  # noqa: BLE001 — التدقيق لا يكسر المسار الرئيسي
+    except Exception:  # noqa: BLE001 — audit must not break the main path
         pass

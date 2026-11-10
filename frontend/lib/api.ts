@@ -1,4 +1,4 @@
-// عميل الـ API الموحد — يضيف Bearer تلقائياً وإلا يفتح نافذة الرمز عبر حدث المتصفح
+// Unified API client — adds the Bearer token automatically, otherwise opens the token dialog via a browser event
 
 export type Health = { status: string };
 

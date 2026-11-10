@@ -1,7 +1,7 @@
-"""واجهة الـ CEO — POST /api/ceo/run + سجل التدقيق.
+"""CEO interface — POST /api/ceo/run + the audit log.
 
-ملاحظة أمنية: `human_confirmed` في جسم الطلب **لا يُوثق**. كل نشر حقيقي يجب
-أن يمر عبر approval row حقيقي بحالة `approved` وref مطابق للـ slug.
+Security note: `human_confirmed` in the request body is **not trusted**. Every real
+publish must go through a real approval row with status `approved` and a ref matching the slug.
 """
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field

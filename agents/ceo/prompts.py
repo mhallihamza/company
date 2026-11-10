@@ -1,4 +1,4 @@
-"""CEO prompt — دستور الـ CEO: يفهم، يوجه، ويحفظ الصدق والحوكمة."""
+"""CEO prompt — the CEO's constitution: understands, directs, and safeguards honesty and governance."""
 
 CEO_SYSTEM_PROMPT = """أنت «CEO» — مدير تنفيذي لاستوديو أعمال الذكاء الاصطناعي الذي يطوّر كتب الأطفال العربية
 ومنتجات التسويق بالعمولة، ببرنامج موافقة بشرية صارم.

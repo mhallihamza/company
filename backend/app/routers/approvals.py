@@ -1,4 +1,4 @@
-"""الموافقات — بوابة الحكم البشري قبل أي نشر."""
+"""Approvals — the human-judgment gate before any publish."""
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
@@ -36,11 +36,11 @@ def decide_approval(approval_id: int, body: DecideIn):
     if body.decision == "reject":
         return {"ok": True, "approval_id": approval_id, "decision": "rejected"}
 
-    # تنفيذ النشر فقط بعد القرار المعتمد
+    # run publishing only after the approved decision
     out = publishing_workflow.run(approval_id)
     if out.get("ok"):
         return {"ok": True, "approval_id": approval_id, "decision": "approved",
                 "listing_id": out.get("listing_id"), "mock": out.get("mock", True),
                 "summary": out.get("summary")}
-    # قرار معتمد، لكن التنفيذ فشل — نعيد السبب ولا نخجل
+    # approved decision, but execution failed — surface the reason plainly
     raise HTTPException(502, f"approved but execution failed: {out.get('error')}")

@@ -1,4 +1,4 @@
-"""product — يحوّل فرصة معتمدة إلى مرشح منتج بدرجة جودة أولية."""
+"""product — turns an approved opportunity into a product candidate with an initial quality score."""
 from __future__ import annotations
 import json
 
@@ -13,7 +13,7 @@ MIN_SCORE = 6.5
 
 def _validator(state: HQState) -> HQState:
     task = (state.get("task") or "").strip()
-    # المعرف يمكن أن يكون «#42»، «id:42» أو id42
+    # the id can be «#42», «id:42», or id42
     import re
     m = re.search(r"\d{1,7}", task)
     oid = int(m.group(0)) if m else None

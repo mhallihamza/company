@@ -1,7 +1,7 @@
-"""Phase 2 — demo labelling & gating: لا hard-coded 7.5/7.0 في demo/partial.
+"""Phase 2 — demo labelling & gating: no hard-coded 7.5/7.0 in demo/partial.
 
-Guarantee: دون مفاتيح Etsy أو Trends، لا يُكتب شيء بـ live؛ بنص AIHQ_ALLOW_DEMO=0 لا يُنشئ شيء على الإطلاق.
-Scores مقيدة بـ [0, 10].
+Guarantee: without Etsy or Trends keys, nothing is written as live; with AIHQ_ALLOW_DEMO=0 nothing is created at all.
+Scores are clamped to [0, 10].
 """
 import os
 import json

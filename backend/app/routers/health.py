@@ -1,4 +1,4 @@
-"""المسار الصحي — مفتوح بلا رمز. يكشف فقط {ok:true}؛ لا host/user/DSN."""
+"""Health route — open without a token. Exposes only {ok:true}; no host/user/DSN."""
 from fastapi import APIRouter, Depends
 
 from backend.app.auth import require_founder
@@ -15,7 +15,7 @@ def health():
 
 @router.get("/admin/health")
 def admin_health(_: str = Depends(require_founder)):
-    """كامل التفاصيل — للمالك/الأدمن فقط، لا تكشف بدون الرمز."""
+    """Full details — founder/admin only, never exposed without the token."""
     from backend.app.db import get_store
     from backend.app.services.store import counts
     from agents.llm import mode_label

@@ -1,4 +1,4 @@
-"""marketing — حزمة تسويق صدقية (SEO/وصف/Pinterest/تقويم). لا ينشر دون موافقة."""
+"""marketing — truthful marketing pack (SEO/listing/Pinterest/calendar). Never publishes without approval."""
 from __future__ import annotations
 import json
 import re

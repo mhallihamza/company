@@ -1,4 +1,4 @@
-"""الوكلاء — بطاقات الـ Agent Cards (كلها ظاهرة من السجل)."""
+"""Agents — Agent Cards (all surfaced from the registry)."""
 from typing import Any
 
 from fastapi import APIRouter, Depends

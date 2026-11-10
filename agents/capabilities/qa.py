@@ -1,4 +1,4 @@
-﻿"""qa_checks — بوابة PASS/FAIL الحتمية قبل أي نشر."""
+﻿"""qa_checks — deterministic PASS/FAIL gate before any publish."""
 from __future__ import annotations
 import json
 from pathlib import Path
@@ -30,7 +30,7 @@ def check_product(slug: str, language: str = "ar") -> list[tuple[str, bool, str]
                    if not p.get("text") or not p.get("image_prompt")]
         checks.append(("every page has text + prompt", not missing,
                        f"missing pages: {missing}" if missing else ""))
-        from agents.capabilities.pdf import build_book_pdf  # noqa: F401 — نضمن وجود البناء
+        from agents.capabilities.pdf import build_book_pdf  # noqa: F401 — make sure the build module exists
         pdf = d / "book.pdf"
         pdf_ok = pdf.exists() and pdf.stat().st_size > 1000 and pdf.read_bytes()[:4] == b"%PDF"
         checks.append(("book.pdf present and valid", pdf_ok, str(pdf)))

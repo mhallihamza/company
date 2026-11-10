@@ -1,4 +1,4 @@
-"""الفرص — عرض وتغيير الحالة + مهارات التسجيل."""
+"""Opportunities — list and status changes + registration skills."""
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 

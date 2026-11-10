@@ -1,6 +1,6 @@
-"""Phase 3 — fee models: كل قاعدة برقم مرجعي و Source URL.
+"""Phase 3 — fee models: every rule with a reference number and Source URL.
 
-يدوية الحساب مقابل Etsy docs و KDP FAQ. لا أرقام مختلقة في هذا الملف.
+Hand-checked against Etsy docs and KDP FAQ. No invented numbers in this file.
 """
 import pytest
 

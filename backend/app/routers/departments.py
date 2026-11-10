@@ -1,4 +1,4 @@
-"""سجل الأقسام — عرض وتشغيل + مهام تنفيذية."""
+"""Departments registry — list and run + execution tasks."""
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException

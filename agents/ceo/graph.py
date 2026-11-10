@@ -1,9 +1,9 @@
-"""CEO graph — القائد المركزي: plan → execute exchange → evaluate → close.
+"""CEO graph — the central commander: plan → execute exchange → evaluate → close.
 
-ينفذ التوجيه الأصلي (Deterministic Routing) + يرتد إلى النموذج عند عدم الكفاية:
-  plan → route (keyword/LLM من السجل) → execute (قسم) → evaluate (الحكم) → close
-هذا التدفق هوالوثني (LangGraph) وليس سلسلة استدعاءات برمجية، كي يمكن لاحقاً
-إضافة Kill Switches/Human Loops لكل عقدة على حدة.
+Executes deterministic routing first, falling back to the model when that is not enough:
+  plan → route (keyword/LLM from the registry) → execute (department) → evaluate (verdict) → close
+This flow is orchestrated (LangGraph), not a hardcoded call chain, so that later we can
+add Kill Switches/Human Loops per node.
 """
 from __future__ import annotations
 import json
@@ -13,7 +13,7 @@ from typing import Any
 from langgraph.graph import END, START, StateGraph
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from agents.common import HQState  # noqa: F401 — تُحتفظ للوراثة المستقبلية
+from agents.common import HQState  # noqa: F401 — kept for future inheritance
 from agents.ceo.state import CEOState
 from agents.llm import get_chat_model, llm_last_note
 from agents.registry import DEPARTMENTS, list_departments
@@ -43,7 +43,7 @@ def route_task(task: str) -> str:
     return fallback_dept if fallback_dept in DEPARTMENTS else "books.content"
 
 
-# ---------------- عقد الـ CEO ----------------
+# ---------------- CEO nodes ----------------
 def _plan(state: CEOState) -> CEOState:
     _db.audit(state.get("task_id"), "ceo", "plan",
               f"planning the task: {state.get('task', '')[:120]}")
@@ -72,7 +72,7 @@ def _execute(state: CEOState) -> CEOState:
         return {"error": f"department '{domain}' blocked by autonomy level {autonomy}",
                 "exec_id": exec_id}
 
-    # بوابة النشر: لا تنفيذ نشر قبل موافقة بشرية صريحة
+    # publishing gate: no publishing execution before explicit human approval
     if spec.approval_policy == "human_required" and not state.get("human_confirmed"):
         if exec_id:
             _db.get_store().finish_execution(exec_id, "needs_approval",
@@ -121,7 +121,7 @@ def _close(state: CEOState) -> CEOState:
     return {}
 
 
-# ---------------- بناء الرسم ----------------
+# ---------------- graph construction ----------------
 _graph = None
 
 

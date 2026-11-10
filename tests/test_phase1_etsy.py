@@ -1,4 +1,4 @@
-"""Phase 1 — Etsy truthfulness: لا mock, لا published دون listing_id حقيقي.
+"""Phase 1 — Etsy truthfulness: no mock, no published without a real listing_id.
 
 Tests cover:
 - Etsy OAuth refresh (expired → refresh → retry)

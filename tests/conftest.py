@@ -1,4 +1,4 @@
-"""إعداد اختبارات الباكند — محاكاة حتمية + SQLite مؤقت معزول."""
+"""Backend test setup — deterministic mocks + isolated temporary SQLite."""
 import os
 import sys
 from pathlib import Path

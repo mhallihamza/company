@@ -1,8 +1,8 @@
-"""Department Registry — سجل الأقسام والوكلاء: كل قسم يسجّل نفسه بهذه المواصفات.
+"""Department Registry — department and agent registry: each department registers itself with these specs.
 
-المعمارية: إضافة قطاع جديد (مثال: التجارة الإلكترونية) = كتابة Spec وتسجيلها،
-دون لمس الـ CEO ولا الـ API ولا الواجهة. السجل هو مصدر الحقيقة لما يستطيع
-النظام فعله وما يحق له بخوفه — والـ Agent Cards تُبنى منه تلقائياً.
+Architecture: adding a new sector (e.g. e-commerce) = write a Spec and register it,
+without touching the CEO, the API, or the UI. The registry is the source of truth for what the
+system can do — and Agent Cards are built from it automatically.
 """
 from __future__ import annotations
 from dataclasses import dataclass, field, asdict
@@ -11,10 +11,10 @@ from typing import Any, Callable
 
 @dataclass
 class AgentSpec:
-    """بطاقة وكيل — تظهر في صفحة الوكلاء وفي سجل التدقيق."""
+    """Agent card — shown on the agents page and in the audit log."""
     name: str                      # researcher | story_writer | etsy_publisher …
-    role: str                      # وصف الوظيفة بالـإنجليزية
-    tier: str = "deterministic"    # reasoning (أقوى نموذج) | fast (أرخص) | deterministic (Python فقط)
+    role: str                      # role description in English
+    tier: str = "deterministic"    # reasoning (strongest model) | fast (cheapest) | deterministic (Python only)
     tools: list[str] = field(default_factory=list)
     version: str = "1.0.0"
 
@@ -37,7 +37,7 @@ class DepartmentSpec:
     agents: list[AgentSpec] = field(default_factory=list)
 
     def to_public(self) -> dict[str, Any]:
-        """نسخة آمنة للعرض في لوحة القيادة والـAPI."""
+        """Safe copy for display on the dashboard and the API."""
         data = asdict(self)
         data.pop("run", None)
         return data
@@ -62,7 +62,7 @@ def get_department(key: str) -> DepartmentSpec | None:
 
 
 def list_agents() -> list[dict[str, Any]]:
-    """قائمة مسطحة بكل الوكلاء عبر الأقسام — تُستهلك من صفحة الوكلاء."""
+    """Flat list of all agents across departments — consumed by the agents page."""
     rows: list[dict[str, Any]] = []
     for dept in list_departments():
         for a in dept.agents:
@@ -81,7 +81,7 @@ def list_agents() -> list[dict[str, Any]]:
     return rows
 
 
-# استيراد الأقسام المدمجة (كل قسم يسجل نفسه عند الاستيراد)
+# import built-in departments (each department registers itself on import)
 from agents.departments import (  # noqa: E402,F401
     affiliate, books, design, finance, market_intel, marketing, product, qa,
 )

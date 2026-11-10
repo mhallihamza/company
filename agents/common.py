@@ -1,4 +1,4 @@
-"""أدوات مشتركة لكل الأقسام: الحالة، مشرف حتمي مع سقوط للنموذج، ورفع التقارير.
+"""Shared tools for all departments: state, a deterministic supervisor with model fallback, and report logging.
 """
 from __future__ import annotations
 import json
@@ -38,7 +38,7 @@ def regex_json(text: str) -> dict[str, Any]:
 
 
 def deterministic_supervisor(options: list[str], completions: list[str], state_progress: list[str]) -> str:
-    """يطابق بقية الإنجاز حسب الحالة؛ يُستخدم عند غياب النموذج أو غموضه."""
+    """Matches the remaining completions by state; used when the model is unavailable or ambiguous."""
     done = {p.split(" ", 1)[0] for p in state_progress}
     for value in options:
         if value == "done":
@@ -50,7 +50,7 @@ def deterministic_supervisor(options: list[str], completions: list[str], state_p
 
 
 def ask_supervisor(role: str, options: list[str], state_progress: list[str]) -> str:
-    """يوجه المشرف: نموذج لغوي في الوضع الحي، خوارزمية حتمية في الوضع التجريبي وعند أي فشل."""
+    """Routes the supervisor: language model in live mode, deterministic algorithm in demo mode and on any failure."""
     from agents.llm import get_chat_model
 
     prefixes = {m.split(" ", 1)[0] for m in state_progress}
@@ -67,7 +67,7 @@ def ask_supervisor(role: str, options: list[str], state_progress: list[str]) -> 
         raw = model.invoke([SystemMessage(content=sys), HumanMessage(content="Decide")]).content
         nxt = str(regex_json(str(raw)).get("next", "")).strip().lower()
         return nxt if nxt in options else _heuristic(options, prefixes)
-    except Exception:  # noqa: BLE001 — لا نكسر المستخدم لأن النموذج فشل
+    except Exception:  # noqa: BLE001 — never break the user path because the model failed
         return _heuristic(options, prefixes)
 
 
@@ -82,7 +82,7 @@ def _heuristic(options: list[str], prefixes: set[str]) -> str:
 
 
 def log_to_db(task_id: int | None, actor: str, action: str, detail: str = ""):
-    """يسجل في جدول audit_logs دون كسر أي مسار رئيسي."""
+    """Writes to the audit_logs table without breaking any main path."""
     try:
         from backend.app import db  # noqa: PLC0415
         db.audit(task_id=task_id, actor=actor, action=action, detail=detail[:2000])

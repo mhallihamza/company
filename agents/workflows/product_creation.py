@@ -1,4 +1,4 @@
-"""product_creation — يبني مرشحي الكتب (candidate → pdf) دون تفعيل النشر."""
+"""product_creation — builds book candidates (candidate → pdf) without enabling publishing."""
 from __future__ import annotations
 
 from agents.departments.books import content

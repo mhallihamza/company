@@ -1,4 +1,4 @@
-"""opportunity_validation — يضبط الفرص الجديدة إلى pursuing/archived بدرجة الحد."""
+"""opportunity_validation — flips new opportunities to pursuing/archived by the threshold score."""
 from __future__ import annotations
 
 import json

@@ -1,4 +1,4 @@
-"""finance — حسابات حتمية (أرقام KDP/Etsy المنشورة). النموذج لا يلمس الأرقام."""
+"""finance — deterministic math (published KDP/Etsy numbers). The model never touches the numbers."""
 from __future__ import annotations
 import re
 from datetime import date
@@ -11,7 +11,7 @@ from agents.registry import AgentSpec, DepartmentSpec, register
 from backend.app.config import REPORTS_DIR
 from backend.app.services import store as svc
 
-from agents.capabilities.finance import unit_economics  # noqa: F401 — مصدر الحقيقة الموحد
+from agents.capabilities.finance import unit_economics  # noqa: F401 — single source of truth
 
 
 def _calculator(state: HQState) -> HQState:

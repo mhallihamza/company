@@ -1,4 +1,4 @@
-﻿"""opportunity_scoring — درجة موثقة 0-10 لـ Affiliate/Intelligence."""
+﻿"""opportunity_scoring — documented 0-10 score for Affiliate/Intelligence."""
 from __future__ import annotations
 
 DEMAND_SCORE = {"high": 8.0, "rising": 8.0, "steady": 6.0, "low": 3.0, "unknown": 5.0}
@@ -6,7 +6,7 @@ COMPETITION_SCORE = {"low": 9.0, "medium": 5.0, "high": 3.0, "unknown": 5.0}
 
 
 def score_candidate(c: dict) -> dict:
-    """معادلة معلنة: 35% طلب، 25% منافسة، 25% عمولة (حد 15%)، 15% نافذة رابط (حد 30 يوم)."""
+    """Documented formula: 35% demand, 25% competition, 25% commission (cap 15%), 15% cookie window (cap 30 days)."""
     price = float(c.get("est_price") or 0)
     pct = float(c.get("commission") or 0)
     cookie = float(c.get("cookie_days") or 14)

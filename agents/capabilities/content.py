@@ -1,4 +1,4 @@
-"""كتابة القصة والتحقق منها — النموذج يقرأ، Python يتحقق."""
+"""Story writing and validation — the model reads, Python verifies."""
 from __future__ import annotations
 import json
 import re

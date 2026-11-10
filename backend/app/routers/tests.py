@@ -1,4 +1,4 @@
-"""product_tests — نتائج حقيقية بعد 2-4 أسابيع اختبر بها الفرصة بصراحة."""
+"""product_tests — real results after 2-4 weeks; an honest way to test an opportunity."""
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from datetime import datetime

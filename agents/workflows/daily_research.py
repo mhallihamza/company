@@ -1,4 +1,4 @@
-"""workflow daily_research — مسح الفرص الصباحي (يطلقه المجدول 08:00 أو بطلبك)."""
+"""workflow daily_research — morning opportunity scan (triggered by the 08:00 scheduler or on demand)."""
 from __future__ import annotations
 
 from datetime import datetime

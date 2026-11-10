@@ -1,4 +1,4 @@
-"""CEO state — الحالة المشتركة بين عقد الـ CEO (LangGraph)."""
+"""CEO state — shared state across CEO nodes (LangGraph)."""
 from __future__ import annotations
 from typing import TypedDict
 

@@ -1,16 +1,16 @@
-"""جذر الإعدادات والمسارات — من .env وغيرها."""
+"""Settings and path roots — from .env and friends."""
 from __future__ import annotations
 import os
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]           # جذر المشروع
+ROOT = Path(__file__).resolve().parents[2]           # project root
 
-# تحميل .env قبل أي قراءة للمفاتيح — مع التجاوز: بيئة الأدوات تتغلب على الملف
+# load .env before any key reads — env vars take precedence over the file
 try:
     from dotenv import load_dotenv
     load_dotenv(ROOT / ".env", override=False)
 except ImportError:
-    # لا يعيق التشغيل؛ يبقى الاعتماد على متغيرات البيئة الصرفة
+    # non-fatal; fall back to raw environment variables
     pass
 
 STORAGE = ROOT / "storage"

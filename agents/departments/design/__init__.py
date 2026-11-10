@@ -1,2 +1,2 @@
-"""التصميم."""
+"""Design."""
 from agents.departments.design import stub  # noqa: F401

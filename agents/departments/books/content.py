@@ -152,7 +152,7 @@ def run(task: str = "", task_id: int | None = None, workspace: str = "default",
 
 
 def build_existing(slug: str) -> dict:
-    """المرحلة الثانية: قصة محررة محفوظة → صور → PDF."""
+    """Stage two: a saved, edited story → images → PDF."""
     state: HQState = {"task": slug, "idea": slug, "slug": slug, "run_id": None,
                       "progress": [f"STORY_DONE {slug}"]}
     try:

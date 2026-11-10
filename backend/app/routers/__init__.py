@@ -1,1 +1,1 @@
-"""أبراج FastAPI — نقاط /api/* الخاصة بـ AI Business HQ."""
+"""FastAPI routers — AI Business HQ's /api/* endpoints."""

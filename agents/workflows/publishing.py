@@ -1,4 +1,4 @@
-"""publishing — بوابة النشر بعد قرار الموافقة: ينفذ ما اعتمدته اللوحة."""
+"""publishing — post-approval publishing gate: executes what the board approved."""
 from __future__ import annotations
 
 from agents.departments.books import publishing

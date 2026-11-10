@@ -1,10 +1,10 @@
 -- =========================================================
--- AI Business HQ — المخطط المرجعي (Reference Schema)
--- التنفيذ الفعلي يحدث تلقائياً عند إقلاع الـ API (CREATE TABLE IF NOT EXISTS)،
--- هذا الملف للتوثيق والتدقيق وأي تعميم مستقبلي يدوي.
+-- AI Business HQ — Reference Schema
+-- Actual execution happens automatically at API startup (CREATE TABLE IF NOT EXISTS),
+-- this file is for documentation, audits, and any future manual rollout.
 -- =========================================================
 
--- الأقسام المسجلة (آخر تسجيل من الكود يطابق بوابة الـ API)
+-- Registered departments (latest registration from the code matches the API gateway)
 CREATE TABLE IF NOT EXISTS departments (
     dept_id      BIGSERIAL PRIMARY KEY,
     key          TEXT UNIQUE NOT NULL,
@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS departments (
     updated_at   TIMESTAMPTZ DEFAULT now()
 );
 
--- الوكلاء داخل كل قسم (لأغراض التهيئة المرجعية)
+-- Agents within each department (for reference seeding)
 CREATE TABLE IF NOT EXISTS agents (
     agent_id     BIGSERIAL PRIMARY KEY,
     dept_key     TEXT NOT NULL,
@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS agents (
     workspace_id TEXT DEFAULT 'default'
 );
 
--- المهام + تنفيذها
+-- Tasks + their executions
 CREATE TABLE IF NOT EXISTS tasks (
     task_id      BIGSERIAL PRIMARY KEY,
     type         TEXT NOT NULL,           -- e.g. run | create_story | build_book | manual
@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS task_executions (
     workspace_id TEXT DEFAULT 'default'
 );
 
--- الفرص المسجلة من الذكاء/التابع
+-- Opportunities logged from intelligence/affiliate
 CREATE TABLE IF NOT EXISTS opportunities (
     opportunity_id BIGSERIAL PRIMARY KEY,
     sector       TEXT NOT NULL,           -- intelligence | affiliate | books
@@ -59,12 +59,12 @@ CREATE TABLE IF NOT EXISTS opportunities (
     niche        TEXT,
     score        DOUBLE PRECISION,
     status       TEXT DEFAULT 'new',      -- new | watching | pursuing | archived
-    payload      TEXT,                    -- JSON كامل
+    payload      TEXT,                    -- full JSON
     workspace_id TEXT DEFAULT 'default',
     created_at   TIMESTAMPTZ DEFAULT now()
 );
 
--- دورة حياة المنتج/الكتاب (opportunity → candidate → story → pdf → qa → approved → published)
+-- Product/book lifecycle (opportunity → candidate → story → pdf → qa → approved → published)
 CREATE TABLE IF NOT EXISTS products (
     product_id   BIGSERIAL PRIMARY KEY,
     slug         TEXT UNIQUE NOT NULL,
@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS products (
     updated_at   TIMESTAMPTZ DEFAULT now()
 );
 
--- التقارير (PDF/MD)
+-- Reports (PDF/MD)
 CREATE TABLE IF NOT EXISTS reports (
     report_id    BIGSERIAL PRIMARY KEY,
     kind         TEXT DEFAULT 'md',
@@ -89,7 +89,7 @@ CREATE TABLE IF NOT EXISTS reports (
     created_at   TIMESTAMPTZ DEFAULT now()
 );
 
--- بوابات الموافقة البشرية
+-- Human approval gates
 CREATE TABLE IF NOT EXISTS approvals (
     approval_id  BIGSERIAL PRIMARY KEY,
     kind         TEXT NOT NULL,           -- e.g. etsy_publish
@@ -101,7 +101,7 @@ CREATE TABLE IF NOT EXISTS approvals (
     created_at   TIMESTAMPTZ DEFAULT now()
 );
 
--- سجل التدقيق: كل فعل مهم في الشركة
+-- Audit log: every significant action in the company
 CREATE TABLE IF NOT EXISTS audit_logs (
     log_id       BIGSERIAL PRIMARY KEY,
     task_id      BIGINT,
@@ -112,7 +112,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     created_at   TIMESTAMPTZ DEFAULT now()
 );
 
--- الميزانية والاستقلال
+-- Budget and autonomy
 CREATE TABLE IF NOT EXISTS budgets (
     budget_id    BIGSERIAL PRIMARY KEY,
     workspace_id TEXT UNIQUE DEFAULT 'default',
@@ -120,7 +120,7 @@ CREATE TABLE IF NOT EXISTS budgets (
     used_usd     DOUBLE PRECISION DEFAULT 0.0
 );
 
--- إعدادات النظام (autonomy_level …)
+-- System settings (autonomy_level …)
 CREATE TABLE IF NOT EXISTS settings (
     key          TEXT PRIMARY KEY,
     value        TEXT,

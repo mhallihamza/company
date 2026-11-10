@@ -1,4 +1,4 @@
-"""بناء PDF — كتاب أطفال 8.5×8.5 بخط Amiri العربي وواجهات RTL."""
+"""PDF build — 8.5×8.5 children's book with the Arabic Amiri font and RTL layout."""
 from __future__ import annotations
 from pathlib import Path
 
@@ -32,7 +32,7 @@ def _font(font_path: Path | str | None = None) -> str:
 
 
 def _wrap_rtl(text: str, font_name: str, size: float, max_width: float) -> list[str]:
-    """يغلف النص العربي حسب عرض السطر (بسيط وحتمية)."""
+    """Wraps Arabic text to the line width (simple and deterministic)."""
     words = str(text).split()
     lines: list[str] = []
     current: list[str] = []
@@ -60,7 +60,7 @@ def build_book_pdf(story: dict, image_paths: list[str], out_path: Path,
     out_path.parent.mkdir(parents=True, exist_ok=True)
     c = canvas.Canvas(str(out_path), pagesize=(_PAGE, _PAGE))
 
-    # صفحة الغلاف
+    # cover page
     c.setFillColor(HexColor("#FFD166"))
     c.rect(0, 0, _PAGE, _PAGE, fill=1, stroke=0)
     if image_paths and Path(image_paths[0]).exists():

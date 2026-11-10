@@ -1,10 +1,10 @@
-"""مصنع النماذج + غلاف مرن + نموذج محوري حتمي للاختبارات.
+"""Model factory + resilient wrapper + deterministic core model for tests.
 
-المزود: LLM_PROVIDER = mistral | anthropic | openai | fake
-الوضع التجريبي: AIHQ_FAKE_LLM=1 أو غياب المفاتيح.
+Provider: LLM_PROVIDER = mistral | anthropic | openai | fake
+Demo mode: AIHQ_FAKE_LLM=1 or missing keys.
 
-أي فشل نموذج حي (تجاوز الحد، شبكة، مفتاح) يرتد فورًا للنموذج الحتمي،
-وتُسجَّل الملاحظة في llm_last_note() بدل أن يتعطل القسم.
+Any live-model failure (rate limit, network, key) falls back immediately to the deterministic model,
+and the note is recorded in llm_last_note() instead of the department crashing.
 """
 from __future__ import annotations
 import json
@@ -124,9 +124,9 @@ def fake_llm() -> BaseChatModel:
     return ScriptedChatModel()
 
 
-# ---------------- النموذج الحتمي (للاختبار/العرض دون شبكة) ----------------
+# ---------------- deterministic model (for tests/demo without network) ----------------
 class ScriptedChatModel(BaseChatModel):
-    """يجيب إجابات حتمية حسب دور الرسالة ([ROLE:name]) — لا شبكة ولا مفاتيح."""
+    """Answers deterministically based on the message role ([ROLE:name]) — no network, no keys."""
 
     @property
     def _llm_type(self) -> str:
@@ -138,7 +138,7 @@ class ScriptedChatModel(BaseChatModel):
         full = "\n".join(str(m.content) for m in messages)
         user = "\n".join(str(m.content) for m in messages
                          if not isinstance(m, SystemMessage))
-        # المنسق يفهم مهمة المستخدم فقط؛ المشرفون يقرؤون كل السياق
+        # the orchestrator only sees the user task; supervisors read the full context
         content = _ROLES.get(role, lambda t: t)(user if role == "orchestrator" else full)
         _record_usage(None)   # fake model: calls counted, but nothing is measured
         return ChatResult(generations=[ChatGeneration(message=AIMessage(content=content))])
@@ -196,9 +196,9 @@ def _affiliate_scout(text: str) -> str:
 
 
 _ROLES = {
-    # التوجيه الرئيسي (CEO)
+    # main routing (CEO)
     "orchestrator": _orch,
-    # مشرفو الأقسام
+    # department supervisors
     "books.market.supervisor": lambda t: (
         '{"next":"researcher"}' if "RESEARCH_DONE" not in t
         else '{"next":"reporter"}' if "REPORT_DONE" not in t
@@ -226,7 +226,7 @@ _ROLES = {
         '{"next":"checker"}' if "CHECKS_DONE" not in t else '{"next":"done"}'),
     "product.supervisor": lambda t: (
         '{"next":"validator"}' if "VALIDATED" not in t else '{"next":"done"}'),
-    # الوكلاء
+    # the agents
     "story_writer": _story_json,
     "report_writer": lambda t: (
         "### تقرير اتجاهات كتب الأطفال (وضع تجريبي)\n\n"
@@ -252,9 +252,9 @@ _ROLES = {
 }
 
 
-# ---------------- الغلاف المرن ----------------
+# ---------------- resilient wrapper ----------------
 class ResilientChatModel(BaseChatModel):
-    """نموذج حي يرتجل للنموذج الحتمي عند أي عطل — بدون أن يتعطل قسم كامل."""
+    """Live model that falls back to the deterministic model on any failure — without taking down the whole department."""
 
     primary: Any
     fallback: Any

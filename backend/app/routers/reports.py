@@ -1,4 +1,4 @@
-"""التقارير — قائمة + تحميل PDF/MD من التخزين."""
+"""Reports — list + download PDF/MD from storage."""
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException

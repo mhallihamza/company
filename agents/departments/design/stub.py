@@ -1,4 +1,4 @@
-"""design — مسودة جدول رسوم: ينتظر ربط مزود صور (IMAGE_PROVIDER). لا يوجد توليد فعلي بعد."""
+"""design — draft render table: waits for an image provider hookup (IMAGE_PROVIDER). No real generation yet."""
 from __future__ import annotations
 
 from agents.common import HQState

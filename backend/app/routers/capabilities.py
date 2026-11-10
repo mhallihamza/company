@@ -1,4 +1,4 @@
-"""القدرات — جميع القدرات المشتركة المسجلة مع مستعمليها."""
+"""Capabilities — all registered shared capabilities with their consumers."""
 from fastapi import APIRouter, Depends
 
 from agents.capabilities import list_capabilities

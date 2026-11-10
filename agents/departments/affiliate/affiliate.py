@@ -1,4 +1,4 @@
-"""affiliate — اكتشاف منتجات برامج عمولة عامة + حساب حتمي للوحدة الاقتصادية."""
+"""affiliate — discover public affiliate-program products + deterministic unit-economics math."""
 from __future__ import annotations
 import json
 from datetime import date
@@ -13,7 +13,7 @@ from agents.capabilities import research
 from backend.app.config import REPORTS_DIR
 from backend.app.services import store as svc
 
-from agents.capabilities.scoring import score_candidate  # noqa: F401 — مصدر الحقيقة الموحد
+from agents.capabilities.scoring import score_candidate  # noqa: F401 — single source of truth
 
 
 def _scout(state: HQState) -> HQState:

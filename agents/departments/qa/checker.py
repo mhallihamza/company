@@ -1,4 +1,4 @@
-"""qa — بوابة حتمية قبل أي نشر/تسليم: بنية، صور، PDF، حدود Etsy، الخط العربي."""
+"""qa — deterministic gate before any publish/delivery: structure, images, PDF, Etsy limits, Arabic font."""
 from __future__ import annotations
 import json
 from datetime import date
@@ -12,7 +12,7 @@ from backend.app.config import ARABIC_FONT, BOOKS_DIR
 from backend.app.services import store as svc
 
 
-from agents.capabilities.qa import check_product  # noqa: F401 — مصدر الحقيقة الموحد
+from agents.capabilities.qa import check_product  # noqa: F401 — single source of truth
 
 
 def _checker(state: HQState) -> HQState:

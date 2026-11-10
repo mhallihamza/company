@@ -1,6 +1,6 @@
-"""بحث الويب العام — إشارات Trends ومنافسة Etsy العلنية.
+"""General web research — Trends signals and public Etsy competition.
 
-صادق: لا تُباع أرقام عند تعذر الاتصال؛ تُرجع محاكاة موسومة source='mock'.
+Honest: no numbers are fabricated when connectivity fails; a tagged mock is returned with source='mock'.
 """
 from __future__ import annotations
 import concurrent.futures

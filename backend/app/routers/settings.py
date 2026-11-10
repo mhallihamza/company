@@ -1,4 +1,4 @@
-"""الإعدادات — معلومات عامة مقتطعة (بدون أسرار) + مستوى الاستقلالية."""
+"""Settings — redacted general info (no secrets) + autonomy level."""
 import os
 
 from fastapi import APIRouter, Depends

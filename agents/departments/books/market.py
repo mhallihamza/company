@@ -1,4 +1,4 @@
-"""books.market — مشرف السوق: Trends + Etsy ثم تقرير."""
+"""books.market — market supervisor: Trends + Etsy, then a report."""
 from __future__ import annotations
 import json
 from datetime import date

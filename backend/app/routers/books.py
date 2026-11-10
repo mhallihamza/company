@@ -1,4 +1,4 @@
-"""الكتب — دور القصة، البناء، الفحص والنشر بموافقات."""
+"""Books — story, build, QA and publishing behind approvals."""
 import json
 from pathlib import Path
 
@@ -25,7 +25,7 @@ class BuildIn(BaseModel):
 
 @router.get("/books/{slug}/pdf")
 def download_book_pdf(slug: str):
-    """بثّ ملف الكتاب PDF للمؤسس (تشغيل التقاطع في الجلسة)."""
+    """Stream the book PDF to the founder (cross-check runs in-session)."""
     product = svc.get_product(slug)
     if not product:
         raise HTTPException(404, f"No product named «{slug}»")
