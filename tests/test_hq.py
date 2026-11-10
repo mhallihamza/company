@@ -106,11 +106,12 @@ def test_affiliate_scorer_deterministic():
 
 # ---------------- المالية حتمية ----------------
 def test_finance_math_is_python():
-    from agents.departments.finance.calculator import unit_economics
-    fin = unit_economics(9.5, 24)
-    expect = 9.5 - (0.20 + 9.5 * (0.065 + 0.03))
-    assert abs(fin["etsy"]["net_before_ads"] - round(expect, 2)) < 0.001
-    assert abs(fin["kdp_paperback"]["royalty_60_pct"] - round(9.5 * 0.60, 2)) < 0.001
+    from agents.fees import etsy, kdp
+    etsy_total = etsy.total_fee(9.5)
+    expect = 9.5 - (0.20 + 9.5 * (0.065 + 0.03) + 0.25)   # listing + tx + 3% + $0.25
+    assert abs(etsy_total["net_receipt"] - round(expect, 2)) < 0.001
+    kdp_high = kdp.paperback_royalty(9.99, 24)             # ≥ $9.99 → 60% rate
+    assert abs(kdp_high["royalty_usd"] - round(9.99 * 0.60 - 2.15, 2)) < 0.001
 
 
 # ---------------- API حارس ----------------

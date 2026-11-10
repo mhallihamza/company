@@ -22,26 +22,42 @@ def _calculator(state: HQState) -> HQState:
         price = float(m_price.group(1)) if m_price else 4.99
         pages = int(m_pages.group(1)) if m_pages else 24
         result = unit_economics(price, pages)
-
         REPORTS_DIR.mkdir(parents=True, exist_ok=True)
         out = REPORTS_DIR / f"finance_{date.today().isoformat()}.md"
-        md = [f"### Unit Economics — {date.today().isoformat()}",
-              "",
-              f"- Price: **{price} USD** · Pages: **{pages}**",
-              "",
-              "#### Etsy (digital download)",
-              f"- Per-sale fees: {result['etsy']['per_sale_costs']} USD",
-              f"- Net before ads: {result['etsy']['net_before_ads']} USD",
-              "",
-              "#### KDP (paperback)",
-              f"- Royalty 60%: {result['kdp_paperback']['royalty_60_pct']} USD (before print cost)",
-              "",
-              "#### KDP (eBook)",
-              f"- Royalty 70%: {result['kdp_ebook']['royalty_70_pct']} USD · Royalty 35%: {result['kdp_ebook']['royalty_35_pct']} USD",
-              "",
-              "#### Assumptions", *[f"- {a}" for a in result["assumptions"]]]
+        etsy = result["etsy"]; kdp = result["kdp_paperback"]; ebook = result["kdp_ebook"]
+        md = [
+            f"### Unit Economics — {date.today().isoformat()}",
+            f"_(source: {etsy.get('marketplace', 'US')}, rates last reviewed {etsy.get('last_reviewed', '—')})_",
+            "",
+            f"- Price: **{price} USD** · Pages: **{pages}**",
+            "",
+            "#### Etsy (digital download, US marketplace)",
+            f"- Listing fee: {etsy['listing_fee']} USD",
+            f"- Transaction (6.5%): {etsy['transaction_fee']} USD",
+            f"- Payment processing (3.0% + $0.25): {etsy['payment_processing_fee']} USD",
+            f"- Offsite ads: {etsy['offsite_ads_fee']} USD (off unless requested)",
+            f"- **Total fees:** {etsy['total_fees']} USD",
+            f"- **Net receipt:** {etsy['net_receipt']} USD",
+            "",
+            "#### KDP (paperback)",
+            f"- Pages: {kdp['pages']}",
+            f"- Royalty rate: {int(kdp['royalty_rate']*100)}%",
+            f"- Printing cost (US B&W): {kdp['printing_cost']} USD",
+            f"- **Royalty:** {kdp['royalty_usd']} USD",
+            "",
+            "#### KDP (eBook)",
+            f"- Royalty 70%: {ebook['royalty_70_pct']} USD · Royalty 35%: {ebook['royalty_35_pct']} USD",
+            "",
+            "#### Assumptions",
+            *[f"- {a}" for a in result["assumptions"]],
+            "",
+            f"_Sources: Etsy — {etsy.get('source_url')}_",
+            f"_Source: KDP royalty — {kdp.get('source_url')}_",
+        ]
         out.write_text("\n".join(md), encoding="utf-8")
-        svc.add_report(str(out), "Unit Economics", out.read_text(encoding="utf-8"))
+        svc.add_report(str(out), "Unit Economics", out.read_text(encoding="utf-8"),
+                       source="live" if (price and pages and price > 0) else "demo",
+                       evidence={"price": price, "pages": pages})
         return {"summary": f"Finance analysis ready — {out.name}",
                 "artifacts": {"finance": result, "report_path": str(out)},
                 "progress": state.get("progress", []) + ["CALC_DONE"]}
