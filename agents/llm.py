@@ -232,9 +232,9 @@ _ROLES = {
         else '{"next":"reporter"}' if "REPORT_DONE" not in t
         else '{"next":"done"}'),
     "books.content.supervisor": lambda t: (
-        '{"next":"story_writer"}' if "STORY_DONE" not in t
-        else '{"next":"illustrator"}' if "IMAGES_DONE" not in t
-        else '{"next":"pdf_builder"}' if "PDF_DONE" not in t
+        '{"next":"story_writer"}' if "STORY_WRITER_DONE" not in t
+        else '{"next":"illustrator"}' if "ILLUSTRATOR_DONE" not in t
+        else '{"next":"pdf_builder"}' if "PDF_BUILDER_DONE" not in t
         else '{"next":"done"}'),
     "books.publishing.supervisor": lambda t: (
         '{"next":"etsy_publisher"}' if "PUBLISH_DONE" not in t else '{"next":"done"}'),

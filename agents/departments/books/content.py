@@ -7,7 +7,7 @@ from pathlib import Path
 from langgraph.graph import END, START, StateGraph
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from agents.common import HQState, ask_supervisor
+from agents.common import HQState
 from agents.capabilities import content as content_tools
 from agents.capabilities import media, pdf
 from agents.profiles import pick_profile
@@ -36,7 +36,7 @@ def _story(state: HQState) -> HQState:
                                       encoding="utf-8")
         svc.upsert_product(slug, story["title"], status="story")
         return {"story": story, "slug": slug,
-                "progress": state.get("progress", []) + [f"STORY_DONE {slug}"],
+                "progress": state.get("progress", []) + [f"STORY_WRITER_DONE {slug}"],
                 "summary": slug}
     except Exception as e:  # noqa: BLE001
         return {"error": f"Story writing failed: {e}", "progress": state.get("progress", []) + ["FAILED story"]}
@@ -44,7 +44,7 @@ def _story(state: HQState) -> HQState:
 
 def _illustrator(state: HQState) -> HQState:
     progress = state.get("progress", [])
-    slug = state.get("slug") or next((m.split(" ", 1)[1] for m in progress if m.startswith("STORY_DONE ")), None)
+    slug = state.get("slug") or next((m.split(" ", 1)[1] for m in progress if m.startswith("STORY_WRITER_DONE ")), None)
     if not slug:
         return {"error": "No story ready for images", "progress": progress + ["FAILED images"]}
     try:
@@ -53,14 +53,14 @@ def _illustrator(state: HQState) -> HQState:
         paths = media.generate_images(story, d)
         svc.upsert_product(slug, story["title"], status="images", cover_path=paths[0] if paths else None)
         return {"slug": slug, "artifacts": {"images": paths},
-                "progress": progress + [f"IMAGES_DONE {slug}"]}
+                "progress": progress + [f"ILLUSTRATOR_DONE {slug}"]}
     except Exception as e:  # noqa: BLE001
         return {"error": f"Image generation failed: {e}", "progress": progress + ["FAILED images"]}
 
 
 def _pdf_builder(state: HQState) -> HQState:
     progress = state.get("progress", [])
-    slug = state.get("slug") or next((m.split(" ", 1)[1] for m in progress if m.startswith("IMAGES_DONE ")), None)
+    slug = state.get("slug") or next((m.split(" ", 1)[1] for m in progress if m.startswith("ILLUSTRATOR_DONE ")), None)
     if not slug:
         return {"error": "No images ready for layout", "progress": progress + ["FAILED pdf"]}
     try:
@@ -86,9 +86,21 @@ def _pdf_builder(state: HQState) -> HQState:
                            cover_path=imgs[0] if imgs else None)
         return {"slug": slug, "pdf_path": str(out), "summary": f"Book built: {slug}",
                 "artifacts": {"pdf_path": str(out)},
-                "progress": progress + [f"PDF_DONE {slug}"]}
+                "progress": progress + [f"PDF_BUILDER_DONE {slug}"]}
     except Exception as e:  # noqa: BLE001
         return {"error": f"PDF build failed: {e}", "progress": progress + ["FAILED pdf"]}
+
+
+def _deterministic_next(options: list[str], progress: list[str]) -> str:
+    """Sequential, language-agnostic next-step picker — deterministic, never uses the LLM."""
+    done_tokens = {m.split(" ", 1)[0] for m in (progress or [])}
+    for value in options:
+        if value == "done":
+            continue
+        marker = value.upper().replace("-", "_").replace(" ", "_") + "_DONE"
+        if marker not in done_tokens:
+            return value
+    return "done"
 
 
 def _detect_product_type(task: str | None) -> str | None:
@@ -174,7 +186,7 @@ def _product_generate_impl(state: HQState) -> HQState:
                                       encoding="utf-8")
         svc.upsert_product(slug, story["title"], status="story")
         return {"story": story, "slug": slug,
-                "progress": state.get("progress", []) + [f"STORY_DONE {slug}"],
+                "progress": state.get("progress", []) + [f"STORY_WRITER_DONE {slug}"],
                 "summary": slug}
     except Exception as e:  # noqa: BLE001
         return {"error": f"Product generation failed: {e}",
@@ -188,9 +200,9 @@ def _supervisor(state: HQState) -> HQState:
         return {"summary": "done"}
     if any(m.startswith("PRODUCT_GENERATE_DONE") for m in progress):
         # content done — continue the deterministic pipeline: illustrator → pdf_builder
-        if not any(m.startswith("IMAGES_DONE") for m in progress):
+        if not any(m.startswith("ILLUSTRATOR_DONE") for m in progress):
             return {"summary": "illustrator"}
-        if not any(m.startswith("PDF_DONE") for m in progress):
+        if not any(m.startswith("PDF_BUILDER_DONE") for m in progress):
             return {"summary": "pdf_builder"}
         return {"summary": "done"}
     task = (state.get("task") or "").lower()
@@ -202,18 +214,22 @@ def _supervisor(state: HQState) -> HQState:
         else:
             nxt = "product_brief"
         return {"summary": nxt}
-    nxt = ask_supervisor("books.content.supervisor",
-                         ["story_writer", "illustrator", "pdf_builder", "done"],
-                         progress)
+    # Linear pipeline — shelf the LLM here. Deterministic else step is the same in every language.
+    nxt = _deterministic_next(["story_writer", "illustrator", "pdf_builder", "done"], progress or [])
     return {"summary": nxt}
 
 
 def _route(state: HQState) -> str:
     if state.get("error"):
         return END
-    if state.get("stop_after") == "story" and any(m.startswith("STORY_DONE") for m in state.get("progress", [])):
+    if state.get("stop_after") == "story" and any(m.startswith("STORY_WRITER_DONE") for m in state.get("progress", [])):
         return END
-    nxt = str(state.get("summary") or "").lower()
+    nxt = str(state.get("summary") or "").lower().strip()
+    # supervisor returns the step name directly — use exact match first
+    if nxt in ("story_writer", "illustrator", "pdf_builder",
+               "product_brief", "product_generate"):
+        return nxt
+    # fallback: legacy substring match for older callers
     if "product_brief" in nxt:
         return "product_brief"
     if "product_generate" in nxt:
@@ -280,7 +296,7 @@ def run(task: str = "", task_id: int | None = None, workspace: str = "default",
 def build_existing(slug: str) -> dict:
     """Stage two: a saved, edited story → images → PDF."""
     state: HQState = {"task": slug, "idea": slug, "slug": slug, "run_id": None,
-                      "progress": [f"STORY_DONE {slug}"]}
+                      "progress": [f"STORY_WRITER_DONE {slug}"]}
     try:
         result = _graph().invoke(state, config={"recursion_limit": 12})
     except Exception as e:  # noqa: BLE001

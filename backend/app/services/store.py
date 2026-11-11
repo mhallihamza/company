@@ -213,10 +213,67 @@ def finish_execution(exec_id: int, status: str, detail: str = "", tokens: int | 
     _store().finish_execution(exec_id, status, detail, tokens)
 
 
+# ---------------- audit / observability rendering ----------------
+
+def _normalize_python_literal(s: str) -> str:
+    """Convert a Python-repr-like string into JSON: ' → " for keys/strings, True/False/None → JSON."""
+    import re as _re
+    out = s.replace("'", '"')
+    out = _re.sub(r'\bTrue\b', 'true', out)
+    out = _re.sub(r'\bFalse\b', 'false', out)
+    out = _re.sub(r'\bNone\b', 'null', out)
+    return out
+
+
+def _parse_detail(detail: str):
+    if not detail:
+        return None
+    import json as _json
+    s = detail.strip()
+    for raw in (s, _normalize_python_literal(s)):
+        try:
+            obj = _json.loads(raw)
+            if isinstance(obj, dict):
+                return obj
+        except Exception:  # noqa: BLE001
+            continue
+    return None
+
+
+def humanize_audit(entry: dict) -> dict:
+    """Return a one-line human-readable summary of an audit-log detail."""
+    raw = str(entry.get("detail") or "")
+    parsed = _parse_detail(raw)
+    if parsed is None:
+        out = dict(entry)
+        out["summary"] = raw[:180]
+        return out
+    bits = []
+    if parsed.get("error") or (parsed.get("ok") is False):
+        err = str(parsed.get("error") or "unknown error")
+        bits.append(f"⚠ {err[:110]}")
+    elif parsed.get("ok") is True:
+        bits.append("✓ ok")
+    if parsed.get("summary") and str(parsed["summary"]).strip() != "None":
+        bits.append(str(parsed["summary"])[:110])
+    if parsed.get("slug"):
+        bits.append(f"slug={parsed['slug']}")
+    if parsed.get("task_id"):
+        bits.append(f"task #{parsed['task_id']}")
+    if parsed.get("file") or parsed.get("report_path"):
+        bits.append("📄 report")
+    if not bits:
+        bits = [raw[:180]]
+    out = dict(entry)
+    out["summary"] = " · ".join(bits)
+    return out
+
+
 def list_audit(limit: int = 100, workspace: str = "default") -> list[dict]:
-    return _store().q(
-        f"SELECT * FROM audit_logs WHERE workspace_id=? ORDER BY log_id DESC LIMIT {int(limit)}",
-        (workspace,))
+    return [humanize_audit(r) for r in
+            _store().q(
+                f"SELECT * FROM audit_logs WHERE workspace_id=? ORDER BY log_id DESC LIMIT {int(limit)}",
+                (workspace,))]
 
 
 # ---------------- settings ----------------

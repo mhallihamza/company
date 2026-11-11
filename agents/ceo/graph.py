@@ -101,7 +101,13 @@ def _execute(state: CEOState) -> CEOState:
             "success" if ok else "failed",
             str(out.get("summary") or out.get("error", ""))[:400],
             tokens_used)
-    _db.audit(task_id, domain, "execute", str(out)[:600])
+    ok_part = "ok" if ok else "failed"
+    summary_part = (out.get("summary") or out.get("error") or "").strip()[:180]
+    slug_part = f"slug={out['slug']}" if isinstance(out.get("slug"), str) and out["slug"] else ""
+    digest = f"{ok_part} · {summary_part}".rstrip(" ·")
+    if slug_part:
+        digest = f"{digest} · {slug_part}"
+    _db.audit(task_id, domain, "execute", digest[:300])
     return {"artifacts": out, "summary": out.get("summary") or "",
             "error": out.get("error") or "", "exec_id": exec_id}
 

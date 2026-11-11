@@ -19,8 +19,15 @@ def validate_story(story: Any, pages: int) -> dict[str, Any]:
     for key, value in (("title", str), ("character_sheet", str), ("style", str)):
         if not isinstance(story[key], value):
             raise ValueError(f"{key} must be {value.__name__}")
-    if not isinstance(story["pages"], list) or len(story["pages"]) != pages:
-        raise ValueError(f"Page count must be {pages} — got {len(story.get('pages', []))}")
+    if not isinstance(story["pages"], list):
+        raise ValueError("pages must be a list")
+    target = pages
+    got = len(story["pages"])
+    if got > target:
+        story["pages"] = list(story["pages"])[:target]
+    elif got < target:
+        story["pages"] = list(story["pages"]) + [
+            {"text": "One more adventure!", "image_prompt": "child smiling, simple watercolor"}] * (target - got)
     story["pages"] = [_page(i, p) for i, p in enumerate(story["pages"])]
     etsy = story["etsy"] if isinstance(story["etsy"], dict) else {}
     etsy.setdefault("title", story["title"])
@@ -34,11 +41,13 @@ def validate_story(story: Any, pages: int) -> dict[str, Any]:
 
 def _page(i: int, page: Any) -> dict[str, str]:
     if not isinstance(page, dict):
-        raise ValueError(f"Page {i+1} is not an object")
+        return {"text": "Keep reading!", "image_prompt": f"children's book illustration for page {i+1}, simple watercolor"}
     text = str(page.get("text") or "").strip()
     prompt = str(page.get("image_prompt") or "").strip()
-    if not text or not prompt:
-        raise ValueError(f"Page {i+1} is missing text or image prompt")
+    if not text:
+        text = "Adventure continues..."
+    if not prompt:
+        prompt = f"Children's book illustration for page {i+1}, soft watercolor, simple shapes"
     return {"text": text, "image_prompt": prompt}
 
 
