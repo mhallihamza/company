@@ -242,6 +242,14 @@ Founder: **"Write a children's book about a turtle who loves to draw"**
 
 ## 11. Adapting HQ to your business
 
+**Publishing business pipeline (3.3.0):** founder request → `books.market` collects evidence
+(market_research module, typed collectors) → opportunity_engine scores 0–10 → founder picks one
+→ `books.content` stores a Product Brief and waits for approval → `design` generates illustrations
+→ `books.content` builds the full book → `qa` runs preflight checks → API returns square PDF + KDP interior
+→ founder reviews in `/products/[slug]` → approves → `books.publishing` submits to Etsy after sign-off.
+
+**Never auto-publish.** Every step that touches an external platform has an `approval_policy` and records an approval row before running.
+
 1. **New department?** Create `agents/departments/<sector>/<file>.py`, implement a LangGraph supervisor,
    `register(DepartmentSpec(...))`, import it from `agents/departments/__init__.py`. The API, UI,
    agents page and audit ledger pick it up automatically.

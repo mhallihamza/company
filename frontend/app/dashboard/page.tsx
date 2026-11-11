@@ -219,7 +219,7 @@ export default function Dashboard() {
         </div>
       </section>
 
-      <p className="mono mt-6 text-[10px] text-[#4b5568]">AI BUSINESS HQ · v{health?.version ?? "3.2.0"} · human-in-the-loop · every external action waits for your approval</p>
+      <p className="mono mt-6 text-[10px] text-[#4b5568]">AI BUSINESS HQ · v{health?.version ?? "3.3.0"} · human-in-the-loop · every external action waits for your approval</p>
     </Shell>
   );
 }

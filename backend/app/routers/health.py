@@ -22,7 +22,7 @@ def admin_health(_: str = Depends(require_founder)):
 
     store = get_store()
     return {
-        "ok": True, "version": "3.2.0",
+        "ok": True, "version": "3.3.0",
         "db_backend": store.backend_label,
         "llm_mode": mode_label(),
         "etsy": etsy_config_status(),

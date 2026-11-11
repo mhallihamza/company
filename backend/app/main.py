@@ -35,7 +35,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="AI Business HQ", version="3.2.0",
+app = FastAPI(title="AI Business HQ", version="3.3.0",
               description="CEO Agent + admin departments — LangGraph + FastAPI + Supabase",
               lifespan=lifespan)
 
@@ -78,5 +78,5 @@ def _maybe_scheduler() -> None:
 
 @app.get("/")
 def root():
-    return {"name": "AI Business HQ", "version": "3.2.0", "docs": "/docs",
+    return {"name": "AI Business HQ", "version": "3.3.0", "docs": "/docs",
             "api": "/api/health"}

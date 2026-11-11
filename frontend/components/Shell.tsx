@@ -146,7 +146,7 @@ export default function Shell({ title, subtitle, actions, children }: {
 
         <div className="border-t border-[color:var(--line)] pt-3 px-2">
           <div className="flex items-center justify-between gap-2 text-[10px] muted">
-            <span className="mono">v3.2.0</span>
+            <span className="mono">v3.3.0</span>
             <span className="truncate">{t("dash.brand_internal")}</span>
           </div>
         </div>

@@ -7,6 +7,15 @@
 
 The UI is English-only (Arabic support was removed by founder request).
 
+**What changed in 3.3.0 — KDP & Etsy publishing upgrade** (this release):
+
+- **Market research module** (`agents/capabilities/market_research/`) — typed collectors for Amazon KDP / Etsy Open API v3 / Google Trends. Etsy collector calls the live API only when `ETSY_KEYSTRING` + `ETSY_SHARED_SECRET` are set. Amazon KDP has **no public competitor API** — we never invent ASIN / BSR / ranks; the founder supplies licensed-provider data manually. Every record carries `source`, `verified`, `blind_spot`.
+- **Product Brief → generate → print → QA → PDF** pipeline for 9 product types (coloring, drawing, painting, activity, tracing, alphabet, matching, maze, educational bundle). Fake LLM mode (`AIHQ_FAKE_LLM=1`) generates deterministic JSON-validated book content offline; the KDP interior is a real 6×9 inch print-ready PDF with Amiri embedded font (Latin coverage).
+- **Product Workspace** at `/products/[slug]` — brief, illustrations, QA report, downloads of square PDF + KDP interior, approval link. **LLM Router integration** — set `LLM_ROUTER_*` env vars to route through an OpenAI-compatible provider; Settings page shows provider status and a "Probe Router" button that makes one live call and reports latency.
+- **New tables** `research_runs`, `research_sources`, `competitor_observations`, `product_briefs`, `generated_assets`, `qa_reports`, `marketplace_listing_drafts` — persistent records, all FK-compatible with existing `tasks` / `products` / `opportunities`.
+
+Verification status (honest): unit tests pass offline (111 tests). Live Etsy publish is **not verified** against a real shop yet. LLM Router path is wired but needs real keys to verify live calls. Nothing invented — every external call without credentials returns a typed blind-spot error rather than silent success. See CHANGES.md for the full breakdown of what is verified vs live.
+
 ## Architecture
 
 > **Deep-dive doc for engineers: `ARCH.md`** — layer map, every router, the CEO graph, market-profile

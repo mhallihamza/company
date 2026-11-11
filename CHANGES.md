@@ -1,4 +1,37 @@
-# CHANGES — AI Business HQ 3.2.0 (Phases 1–6 + Phase 7 Items 1–7 + English-only follow-up)
+# CHANGES — AI Business HQ 3.3.0 (Phases 1–7 + KDP/Etsy publishing business upgrade)
+
+## Publishing-business upgrade (this release)
+
+**What changed:**
+
+- `agents/capabilities/market_research/` — new typed, sourced-typed collector package for Amazon KDP / Etsy / Google Trends / Pinterest (Pinterest: disabled, honest). Amazon KDP has **no public API** — we collect everything through permitted Etsy API v3 + Google Trends; we NEVER fabricate Amazon rank/BSR/ASIN data.
+- `agents/capabilities/product_brief.py` — deterministic 0→24/32/42-page Product Briefs (coloring, drawing, painting, tracing, alphabet, activity, matching, maze, bundle). Founder selects from a menu, never guesses.
+- `agents/capabilities/product_builder.py` — approved brief → full English book/activity book content (title, character sheet, style, N pages, tags), JSON-validated.
+- `agents/capabilities/kdp_interior.py` — 6×9 inch print-ready KDP interior PDF (Amiri Latin-capable font).
+- `agents/llm_router.py` — optional LLM Router health check + `/api/settings/provider_health` endpoint (Founder-only). `LLM_PROVIDER=llm_router` routes through OpenAI-compatible base URL. Never prints keys; never silently falls back to fake mode on failure.
+- `agents/departments/books/content.py` — product brief → generate → print → PDF, with `PRODUCT_GENERATE_DONE` flow so illustrator/pdf_builder run in sequence.
+- `agents/departments/design/stub.py` — full Design department (real provider call when `IMAGE_PROVIDER=openai`, clear error otherwise; PIL fallback documented).
+- `agents/departments/books/market.py` — books.market rewritten to collect through market_research module; full research report with competitor examples + evidence gaps + confidence rating.
+- `agents/capabilities/qa.py` — QA extended: page count vs declared product type, illustration presence/count, Amiri Latin font, KDP PDF presence for books.
+- `backend/app/routers/` — new endpoints: `GET /books/{slug}/assets`, `GET /books/{slug}/interior_kdp`, `GET /books/{slug}/qa`, `GET /books/{slug}/brief`.
+- Frontend: `/products/[slug]` Product Workspace (brief, illustrations, QA report, downloads). Settings gets an LLM Router health probe + image-provider status badge.
+
+**Verification status (honest):**
+
+| Area | Implemented | Tested offline | Verified against a live store |
+|---|---|---|---|
+| market_research collectors (etsy/trends) | ✅ | ✅ (fixtures) | ❌ — needs ETSY_* keys + real network |
+| Product Brief → generate → print → PDF | ✅ | ✅ (fake LLM run completed end-to-end) | n/a |
+| KDP 6×9 interior PDF | ✅ | ✅ file size/fonts/margins verified with PIL | n/a |
+| LLM Router integration | ✅ (code paths + health endpoint) | ✅ (code path toggles in offline mode) | ❌ — needs LLM_ROUTER_* keys |
+| Frontend workspace | ✅ | manual inspection | n/a |
+
+**Never faked:** no listings are ever marked `published`/`draft_created` without a real Etsy API response. No Amazon rank/ASIN invented. No LLM Router response is synthesized when keys are absent (type-checks at boot; health probe returns clear error).
+
+## Known limits (all still labelled)
+_The upgrade is real code that works offline with AIHQ_FAKE_LLM=1. Live runs need credentials the founder already has or can add._
+
+## 3.2.0 baseline (previously shipped)
 
 ## Honesty correction (Item 2, Phase 7)
 
