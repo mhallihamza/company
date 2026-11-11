@@ -37,6 +37,33 @@ def download_book_pdf(slug: str):
     return FileResponse(path, filename=f"{slug}.pdf", media_type="application/pdf")
 
 
+@router.get("/books/{slug}/interior_kdp")
+def download_kdp_interior(slug: str):
+    """Stream the KDP print-ready interior PDF (6x9)."""
+    product = svc.get_product(slug)
+    if not product:
+        raise HTTPException(404, f"No product named «{slug}»")
+    path = BOOKS_DIR / slug / "interior_kdp.pdf"
+    if not path.exists():
+        raise HTTPException(410, "KDP interior PDF no longer exists on disk — rebuild the book")
+    return FileResponse(path, filename=f"{slug}-kdp.pdf", media_type="application/pdf")
+
+
+@router.get("/books/{slug}/asset/{asset_name}")
+def download_asset(slug: str, asset_name: str):
+    """Stream a generated asset (PNG/JPG) for the given product."""
+    product = svc.get_product(slug)
+    if not product:
+        raise HTTPException(404, f"No product named «{slug}»")
+    # whitelist filename — no path traversal
+    if any(c in asset_name for c in "/\\.."):
+        raise HTTPException(400, "invalid asset name")
+    path = BOOKS_DIR / slug / asset_name
+    if not path.exists():
+        raise HTTPException(410, f"asset {asset_name!r} not found")
+    return FileResponse(path)
+
+
 class PublishRequestIn(BaseModel):
     slug: str
     note: str = ""
@@ -118,6 +145,23 @@ def build_book(slug: str):
 def qa_report(slug: str):
     out = qa_checker.run(slug)
     return out
+
+
+@router.get("/books/{slug}/assets")
+def list_assets(slug: str):
+    return svc.list_generated_assets(slug)
+
+
+@router.get("/books/{slug}/qa")
+def qa_list(slug: str):
+    return svc.list_qa_reports(slug)
+
+
+@router.get("/books/{slug}/brief")
+def brief(slug: str):
+    from agents.capabilities.product_brief import product_types
+    rows = svc.q("SELECT * FROM product_briefs ORDER BY brief_id DESC LIMIT 20")
+    return {"types": product_types(), "recent_briefs": rows}
 
 
 @router.post("/books/{slug}/publish-request")

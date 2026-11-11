@@ -164,6 +164,34 @@ def _orch(text: str) -> str:
     return json.dumps({"domain": "books.content"}, ensure_ascii=False)
 
 
+def _content_builder(text: str) -> str:
+    """Fake-LLM product-builder — deterministic full book/activity content as JSON."""
+    PAGES = {
+        "coloring_book": 24, "drawing_workbook": 24, "painting_workbook": 24,
+        "activity_workbook": 32, "tracing_workbook": 32, "alphabet_workbook": 32,
+        "matching_activity": 24, "maze_book": 24, "educational_bundle": 42,
+    }
+    niche = "market"
+    for kw in ("coloring", "drawing", "tracing", "alphabet", "activity", "maze",
+               "matching", "painting", "educational", "bundle"):
+        if kw in text.lower():
+            niche = kw
+            break
+    pages = []
+    for i in range(PAGES.get(niche, 12)):
+        pages.append({"text": f"Page {i+1} — a fun activity to finish!" if i else "Cover — join the fun!",
+                      "image_prompt": f"page {i+1} for a {niche} book, simple line art for children"})
+    return json.dumps({
+        "title": f"The {niche.replace('_', ' ').title()} Book",
+        "character_sheet": "A friendly cartoon child with a big smile, simple rounded shapes",
+        "style": "black and white line art, thick outlines, simple shapes",
+        "pages": pages,
+        "etsy": {"title": f"{niche.replace('_', ' ').title()} Book for Kids",
+                 "description": "Fun printable activity book for children ages 3-5.",
+                 "tags": ["kids activities", "kids book", "printable"] },
+    }, ensure_ascii=False)
+
+
 def _story_json(text: str) -> str:
     idea = (re.search(r"IDEA:\s*(.+)", text) or re.search(r"[Ww]rite\s+(.+)", text))
     title = idea.group(1).strip()[:60] if idea else "A Little Adventure"
@@ -229,11 +257,13 @@ _ROLES = {
     # the agents
     "story_writer": _story_json,
     "report_writer": lambda t: (
-        "### Children's-book trends report (demo mode)\n\n"
-        "- Coloring animals (ages 3-6): rising demand, medium competition — score 7.2/10\n"
-        "- Alphabet workbook (English): steady demand, low competition — score 7.0/10\n"
-        "- Bedtime stories: high demand, high competition — score 6.0/10\n\n"
-        "Note: this is a demo analysis. For production you need Google Trends / Etsy keys."),
+        "### Children's Drawing & Painting Books — Market Research\n"
+        "**Confidence:** low — no verified competitor data on file\n\n"
+        "- Coloring animals ages 3-6: rising demand, medium competition — score 7.2/10\n"
+        "- Activity books ages 3-5: steady demand, low competition — score 7.0/10\n"
+        "- Tracing workbooks: high demand, medium competition — score 6.5/10\n\n"
+        "Note: these are demo figures — set ETSY_KEYSTRING to collect live competition."),
+    "content_builder": _content_builder,
     "intelligence.scorer": lambda t: json.dumps({
         "opportunities": [
             {"title": "DEMO — Coloring animals (test scaffold)", "niche": "coloring", "score": 7.5},
@@ -286,6 +316,18 @@ def get_chat_model(temperature: float = 0.4, max_tokens: int = 4000) -> BaseChat
     provider = os.getenv("LLM_PROVIDER", "mistral").lower()
     model = os.getenv("LLM_MODEL", "")
     try:
+        if provider == "llm_router":
+            from agents.llm_router import router_available, router_model, router_env_status
+            if router_available():
+                from langchain_openai import ChatOpenAI
+                return ResilientChatModel(
+                    primary=ChatOpenAI(model=router_model(),
+                                       base_url=os.getenv("LLM_ROUTER_BASE_URL"),
+                                       api_key=os.getenv("LLM_ROUTER_API_KEY"),
+                                       temperature=temperature, max_tokens=max_tokens),
+                    fallback=fake_llm())
+            _note("llm_router requested but not configured — falling back to deterministic mode")
+            return fake_llm()
         if provider == "mistral":
             if not os.getenv("MISTRAL_API_KEY"):
                 return fake_llm()

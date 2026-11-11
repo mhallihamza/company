@@ -32,6 +32,10 @@ services:
       - DB_POOL_MAX
       - DB_POOL_MAX_IDLE
       - DB_POOL_MAX_LIFETIME
+      - IMAGE_PROVIDER
+      - LLM_ROUTER_API_KEY
+      - LLM_ROUTER_BASE_URL
+      - LLM_ROUTER_MODEL
     volumes:
       - ./storage:/app/storage
       - ./data:/app/data

@@ -28,6 +28,9 @@ class HQState(TypedDict, total=False):
     market: str
     market_profile: dict
     fee_source: str
+    product_type: str
+    brief: dict
+    brief_id: int
 
 
 def regex_json(text: str) -> dict[str, Any]:

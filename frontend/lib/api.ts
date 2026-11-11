@@ -95,6 +95,8 @@ export type Settings = {
   llm_mode: string; db_backend: string; autonomy_level: number;
   autonomy_levels: { level: number; name: string; describe: string }[];
   keys: Record<string, string>; scheduler_enabled: boolean;
+  llm_router: { configured: boolean; provider: string; model: string | null };
+  image_provider: { provider: string; live: boolean };
   etsy: {
     status: "configured" | "not_configured";
     variables: {
@@ -198,6 +200,11 @@ export const api = {
   setAutonomy: (level: number) =>
     req<{ ok: boolean; autonomy_level: number }>("/api/settings/autonomy",
       { method: "POST", body: JSON.stringify({ level }) }),
+  providerHealth: () =>
+    req<{ ok: boolean; configured: boolean; model: string | null;
+          base_url_configured: boolean; latency_ms: number | null; error: string | null; provider: string }>(
+      "/api/settings/provider_health",
+      { method: "POST", body: JSON.stringify({ probe: true }) }),
   downloadBook: async (slug: string) => {
     const resp = await fetch(`${BASE}/api/books/${encodeURIComponent(slug)}/pdf`, {
       headers: token() ? { Authorization: `Bearer ${token()}` } : {},

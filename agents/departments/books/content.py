@@ -76,7 +76,12 @@ def _pdf_builder(state: HQState) -> HQState:
         pdf.build_book_pdf(story, imgs, out,
                            font_path=font_path,
                            language=str(state.get("language") or "en").lower(),
-                           text_direction=str(state.get("text_direction") or "rtl"))
+                           text_direction=str(state.get("text_direction") or "ltr"))
+        # KDP interior (if marketplace is kdp)
+        if (story.get("marketplace") or "kdp") in ("kdp", "both"):
+            from agents.capabilities import kdp_interior
+            kdp_out = d / "interior_kdp.pdf"
+            kdp_interior.build_kdp_interior(story, imgs, kdp_out)
         svc.upsert_product(slug, story["title"], status="pdf", pdf_path=str(out),
                            cover_path=imgs[0] if imgs else None)
         return {"slug": slug, "pdf_path": str(out), "summary": f"Book built: {slug}",
@@ -86,10 +91,120 @@ def _pdf_builder(state: HQState) -> HQState:
         return {"error": f"PDF build failed: {e}", "progress": progress + ["FAILED pdf"]}
 
 
+def _detect_product_type(task: str | None) -> str | None:
+    if not task:
+        return None
+    t = task.lower()
+    mapping = {
+        "coloring": "coloring_book", "drawing": "drawing_workbook",
+        "painting": "painting_workbook", "activity": "activity_workbook",
+        "tracing": "tracing_workbook", "alphabet": "alphabet_workbook",
+        "matching": "matching_activity", "maze": "maze_book",
+        "bundle": "educational_bundle",
+    }
+    for kw, ptype in mapping.items():
+        if kw in t:
+            return ptype
+    return None
+
+
+def _product_brief(state: HQState) -> HQState:
+    """Produce a Product Brief from a founder idea. Does NOT generate the book yet."""
+    from agents.capabilities.product_brief import build_brief
+    task = state.get("task") or state.get("idea") or ""
+    ptype = state.get("product_type") or _detect_product_type(task)
+    if not ptype:
+        return {"error": "No product type detected. Say e.g. 'coloring book for new drawing themes' — or set state.product_type.",
+                "progress": state.get("progress", []) + ["FAILED product_brief"]}
+    marketplace = "kdp"
+    if "etsy" in task.lower() or "printable" in task.lower():
+        marketplace = "etsy"
+    niche = {"kdp": "drawing", "etsy": "printables"}.get(marketplace, "drawing")
+    brief = build_brief(
+        {"title": task.split(":", 1)[-1].strip() or ptype.replace("_", " ").title(),
+         "niche": niche, "age": "3-5",
+         "differentiation": "Founder-selected opportunity from market research.",
+         "seeds": []},
+        marketplace, ptype)
+    try:
+        bid = svc.upsert_product_brief("brief_" + _slugify(brief["title"]), brief|{"status": "pending_approval"})
+        return {"brief": brief, "brief_id": bid,
+                "artifacts": {"brief": brief, "brief_id": bid},
+                "summary": f"Brief ready for your approval: {brief['title']}",
+                "progress": state.get("progress", []) + ["BRIEF_DONE"]}
+    except Exception as e:  # noqa: BLE001
+        return {"error": f"Brief storage failed: {e}",
+                "progress": state.get("progress", []) + ["FAILED product_brief"]}
+
+
+def _run_and_finish(fn, state: HQState):
+    out = fn(state)
+    if not out.get("error"):
+        out = dict(out)
+        out["progress"] = out.get("progress", []) + ["PRODUCT_GENERATE_DONE"]
+    return out
+
+
+def _product_generate(state: HQState) -> HQState:
+    """Generate the full product content from an approved brief."""
+    from agents.capabilities.product_builder import build_product
+    return _run_and_finish(_product_generate_impl, state)
+
+
+def _product_generate_impl(state: HQState) -> HQState:
+    from agents.capabilities.product_builder import build_product
+    brief_rows = state.get("brief") or {}
+    approved = False
+    try:
+        rows = svc.q("SELECT * FROM product_briefs WHERE status='approved' ORDER BY brief_id DESC LIMIT 1")
+        if rows:
+            brief_rows = json.loads(rows[0]["content"]) if isinstance(rows[0].get("content"), str) else rows[0]["content"]
+            approved = True
+    except Exception:  # noqa: BLE001
+        pass
+    if not approved:
+        return {"error": "No approved Product Brief exists yet — approve a brief first, then re-run.",
+                "progress": state.get("progress", []) + ["FAILED product_generate"]}
+    try:
+        story = build_product(brief_rows)
+        slug = _slugify(story["title"])
+        d = BOOKS_DIR / slug
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "story.json").write_text(json.dumps(story, ensure_ascii=False, indent=2),
+                                      encoding="utf-8")
+        svc.upsert_product(slug, story["title"], status="story")
+        return {"story": story, "slug": slug,
+                "progress": state.get("progress", []) + [f"STORY_DONE {slug}"],
+                "summary": slug}
+    except Exception as e:  # noqa: BLE001
+        return {"error": f"Product generation failed: {e}",
+                "progress": state.get("progress", []) + ["FAILED product_generate"]}
+
+
 def _supervisor(state: HQState) -> HQState:
+    progress = state.get("progress", [])
+    # stop after a brief is produced — founder approves, then regenerates with "generate"
+    if not state.get("human_confirmed") and any(m.startswith("BRIEF_DONE") for m in progress):
+        return {"summary": "done"}
+    if any(m.startswith("PRODUCT_GENERATE_DONE") for m in progress):
+        # content done — continue the deterministic pipeline: illustrator → pdf_builder
+        if not any(m.startswith("IMAGES_DONE") for m in progress):
+            return {"summary": "illustrator"}
+        if not any(m.startswith("PDF_DONE") for m in progress):
+            return {"summary": "pdf_builder"}
+        return {"summary": "done"}
+    task = (state.get("task") or "").lower()
+    if state.get("product_type") or _detect_product_type(task):
+        if "brief" in task or "brief for" in task:
+            nxt = "product_brief"
+        elif "generate" in task or "create" in task:
+            nxt = "product_generate"
+        else:
+            nxt = "product_brief"
+        return {"summary": nxt}
     nxt = ask_supervisor("books.content.supervisor",
                          ["story_writer", "illustrator", "pdf_builder", "done"],
-                         state.get("progress", []))
+                         progress)
     return {"summary": nxt}
 
 
@@ -99,6 +214,10 @@ def _route(state: HQState) -> str:
     if state.get("stop_after") == "story" and any(m.startswith("STORY_DONE") for m in state.get("progress", [])):
         return END
     nxt = str(state.get("summary") or "").lower()
+    if "product_brief" in nxt:
+        return "product_brief"
+    if "product_generate" in nxt:
+        return "product_generate"
     if "story" in nxt:
         return "story_writer"
     if "illustrat" in nxt or "image" in nxt:
@@ -111,13 +230,19 @@ def _route(state: HQState) -> str:
 def _graph():
     g = StateGraph(HQState)
     g.add_node("supervisor", _supervisor)
+    g.add_node("product_brief", _product_brief)
+    g.add_node("product_generate", _product_generate)
     g.add_node("story_writer", _story)
     g.add_node("illustrator", _illustrator)
     g.add_node("pdf_builder", _pdf_builder)
     g.add_edge(START, "supervisor")
     g.add_conditional_edges("supervisor", _route,
-                            {"story_writer": "story_writer", "illustrator": "illustrator",
+                            {"product_brief": "product_brief",
+                             "product_generate": "product_generate",
+                             "story_writer": "story_writer", "illustrator": "illustrator",
                              "pdf_builder": "pdf_builder", END: END})
+    g.add_edge("product_brief", "supervisor")
+    g.add_edge("product_generate", "supervisor")
     g.add_edge("story_writer", "supervisor")
     g.add_edge("illustrator", "supervisor")
     g.add_edge("pdf_builder", "supervisor")
@@ -126,21 +251,22 @@ def _graph():
 
 def run(task: str = "", task_id: int | None = None, workspace: str = "default",
         idea: str | None = None, stop_after: str = "",
-        market: str | None = None) -> dict:
+        market: str | None = None, product_type: str | None = None) -> dict:
     try:
         profile = pick_profile(market)
         if profile is None:
-            known = "us-en, fr-fr, sa-ar" if not market else f"'{market}' not found or disabled"
+            known = "us-en, fr-fr, sa-en" if not market else f"'{market}' not found or disabled"
             return {"ok": False, "task_id": task_id,
                     "error": f"no enabled market profile ({known}) — enable one at /profiles"}
-        language = str(profile.get("language") or "ar").lower()
+        language = str(profile.get("language") or "en").lower()
         lang = get_language_profile(language)   # fail fast — unsupported code → UnsupportedLanguage
         state: HQState = {"task": idea or task or "a children's story", "idea": idea or task,
                           "run_id": task_id, "progress": [], "stop_after": stop_after or "",
                           "language": language,
                           "text_direction": lang.text_direction,
                           "font_ref": lang.font_ref,
-                          "market": profile.get("label") or f"{profile.get('country')}-{language}".lower()}
+                          "market": profile.get("label") or f"{profile.get('country')}-{language}".lower(),
+                          "product_type": product_type or _detect_product_type(task or idea)}
         result = _graph().invoke(state, config={"recursion_limit": 12})
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "error": str(e), "task_id": task_id}

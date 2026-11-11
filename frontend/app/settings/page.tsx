@@ -11,6 +11,7 @@ export default function SettingsPage() {
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState("");
+  const [probeMsg, setProbeMsg] = useState("");
 
   useEffect(() => {
     api.settings().then(setSettings).catch((e) => setError(e instanceof Error ? e.message : "Could not load"));
@@ -31,6 +32,20 @@ export default function SettingsPage() {
   function clearToken() {
     localStorage.removeItem("founder_token");
     setMsg("🧹 Founder token cleared from this browser — you’ll be asked on the next request.");
+  }
+
+  async function probeRouter() {
+    setProbeMsg("Probing…");
+    try {
+      const out = await api.providerHealth();
+      if (out.ok) {
+        setProbeMsg(`ok · ${out.provider} · ${out.model} · ${out.latency_ms}ms`);
+      } else {
+        setProbeMsg(`failed · ${out.error ?? "unknown error"}`);
+      }
+    } catch (e) {
+      setProbeMsg(`failed · ${e instanceof Error ? e.message : "request failed"}`);
+    }
   }
 
   return (
@@ -114,6 +129,36 @@ export default function SettingsPage() {
               <span className={`badge ${settings.scheduler_enabled ? "badge-ok" : "badge"}`}>
                 {settings.scheduler_enabled ? t("settings.scheduler_on") : t("settings.scheduler_off")}
               </span>
+            </div>
+
+            <div className="mt-4 rounded-xl border border-[color:var(--line)] p-4">
+              <div className="eyebrow">AI Providers</div>
+              <div className="mt-2 divide-y divide-[color:var(--line)]">
+                <div className="flex items-center justify-between gap-3 py-2 text-sm">
+                  <span>LLM Router</span>
+                  <span className={`badge ${settings.llm_router.configured ? "badge-ok" : "badge-err"}`}>
+                    {settings.llm_router.configured ? "configured" : "not configured"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-3 py-2 text-sm">
+                  <span>Provider</span>
+                  <span className="font-mono text-xs" dir="ltr">{settings.llm_router.provider}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3 py-2 text-sm">
+                  <span>Image provider</span>
+                  <span className={`badge ${settings.image_provider.live ? "badge-ok" : "badge-warn"}`}>
+                    {settings.image_provider.live ? "openai (live)" : `${settings.image_provider.provider} (offline)`}
+                  </span>
+                </div>
+              </div>
+              <button className="btn btn-ghost btn-sm mt-3 w-full justify-center" onClick={probeRouter}>
+                Test LLM Router connection
+              </button>
+              {probeMsg && (
+                <div className={`mt-2 rounded-lg border p-2 text-[11px] ${probeMsg.startsWith("ok") ? "border-[color:var(--ok)]/40 bg-[color:var(--ok)]/10" : "border-[color:var(--err)]/40 bg-[color:var(--err)]/10"}`}>
+                  {probeMsg}
+                </div>
+              )}
             </div>
 
             <button className="btn btn-ghost btn-sm mt-4" onClick={clearToken}>{t("settings.clear_token")}</button>

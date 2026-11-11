@@ -14,33 +14,98 @@ from agents.capabilities import research
 from backend.app.config import REPORTS_DIR
 from backend.app.services import store as svc
 
-SEED_KEYWORDS = ["activity book kids", "coloring book animals",
-                 "arabic alphabet learning", "arabic kids book", "bedtime stories"]
+SEED_KEYWORDS = ["drawing book kids", "coloring book kids",
+                 "drawing and painting kids", "activity book preschool",
+                 "tracing workbook kids", "painting book children"]
 
 
 def _researcher(state: HQState) -> HQState:
-    svc.audit(state.get("run_id"), "books.market", "scan_trends", "Trends+Etsy scan started")
+    svc.audit(state.get("run_id"), "books.market", "research_scan",
+              "KDP/Etsy/Trends market scan started")
     try:
-        data = research.full_research(SEED_KEYWORDS)
-        return {"research": data, "progress": state.get("progress", []) + ["RESEARCH_DONE"]}
+        from agents.capabilities import market_research as mr
+        task = state.get("task") or "scan"
+        keywords = SEED_KEYWORDS + [task] if task and task != "scan" else SEED_KEYWORDS
+        run_id = None
+        try:
+            run_id = svc.create_research_run(task, state.get("run_id"))
+        except Exception:  # noqa: BLE001
+            run_id = None
+
+        envelopes = mr.collect_all(keywords)
+        analysis = mr.analyze_records(envelopes)
+
+        # persist raw observations + normalized records
+        if run_id:
+            svc.add_research_source(run_id, "composite_market_research", ", ".join(keywords),
+                                    envelopes.get("etsy", {}).get("collected_at"),
+                                    analysis["confidence"] == "high",
+                                    "etsy" not in analysis["verified_sources"])
+            for name, env in envelopes.items():
+                for rec in env.get("records") or []:
+                    try:
+                        svc.add_competitor_observation(run_id, rec)
+                    except Exception:  # noqa: BLE001 — best effort; never block the report
+                        pass
+
+        return {"research": {"envelopes": envelopes,
+                              "normalized": analysis,
+                              "competitors": analysis["competitor_examples"],
+                              "confidence": analysis["confidence"]},
+                "progress": state.get("progress", []) + ["RESEARCH_DONE"],
+                "summary": "research done"}
     except Exception as e:  # noqa: BLE001
-        return {"error": f"Research failed: {e}", "progress": state.get("progress", []) + ["FAILED researcher"]}
+        return {"error": f"Research failed: {e}",
+                "progress": state.get("progress", []) + ["FAILED researcher"]}
 
 
 def _reporter(state: HQState) -> HQState:
     try:
-        research_data = state.get("research") or research.full_research(SEED_KEYWORDS)
+        research_data = state.get("research") or {}
+        collection = research_data if isinstance(research_data, dict) else {}
+        envelopes = collection.get("envelopes", {})
+        competitors = collection.get("competitors", [])
+        confidence = collection.get("confidence", "low")
+
+        verified = sorted({kw for kw in envelopes for kw, env in envelopes.items() if env.get("verified")})
+        blind_spots = sorted({kw for kw, env in envelopes.items() if env.get("blind_spot") or not env.get("verified")})
+
+        report_lines = [
+            "# Children's Drawing & Painting Books — Market Research",
+            "",
+            f"**Confidence:** {confidence}  ",
+            f"**Verified sources:** {', '.join(verified) if verified else 'none'}  ",
+            f"**Blind-spot / unverified sources:** {', '.join(blind_spots) if blind_spots else 'none'}  ",
+            "",
+            "## Evidence gaps",
+            "- Missing data is reported as missing — never invented.",
+            "- Etsy/KDP competition numbers require live keys (ETSY_KEYSTRING + ETSY_SHARED_SECRET).",
+            "- Google Trends averages are interest-over-time proxies, not sales volumes.",
+            "",
+            "## Competitor examples",
+        ]
+        for c in competitors:
+            src = c.get("source", "?")
+            report_lines.append(
+                f"- **{c.get('title')}** — source: {src} — url: {c.get('url')} — price: ${c.get('price')} — rating: {c.get('rating')} — reviews: {c.get('reviews')}")
+
         model = get_chat_model(temperature=0.2, max_tokens=1800)
-        sys = ("[ROLE:report_writer]\nYou are a children's-book market analyst. Write IN ARABIC: "
-               "pick top 3 niches, score each /10, propose one book idea each. Be honest about data limits.\n"
-               f"RESEARCH_DATA: {json.dumps(research_data, ensure_ascii=False)[:2500]}\n")
-        content = str(model.invoke([SystemMessage(content=sys), HumanMessage(content="Write the report")]).content)
+        prompt = (
+            "[ROLE:report_writer]\nYou are a children's-book market analyst. Use ONLY the competitor "
+            "records below. Write a concise English report recommending 5-10 product opportunities for "
+            "kids aged 3-5 (drawing / painting / coloring / activity books). Do NOT fabricate numbers. "
+            "Every recommendation must list evidence source links.\n"
+            f"COLLECTED_RECORDS: {json.dumps(competitors, ensure_ascii=False)[:4000]}\n"
+            f"CONFIDENCE: {confidence}\n")
+        content = str(model.invoke([SystemMessage(content=prompt),
+                                    HumanMessage(content="Write the market research report")]).content)
+
         REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-        out = REPORTS_DIR / f"trends_{date.today().isoformat()}.md"
+        out = REPORTS_DIR / f"drawing_research_{date.today().isoformat()}.md"
         out.write_text(content, encoding="utf-8")
-        svc.add_report(str(out), "Market trends report", content)
-        return {"summary": f"Market report ready: {out.name}",
-                "artifacts": {"report_path": str(out)},
+        svc.add_report(str(out), "Children's Drawing & Painting Books — Market Research", content)
+        return {"summary": f"Market research ready: {out.name}",
+                "artifacts": {"report_path": str(out), "body": content},
                 "progress": state.get("progress", []) + ["REPORT_DONE"]}
     except Exception as e:  # noqa: BLE001
         return {"error": f"Report writing failed: {e}", "progress": state.get("progress", []) + ["FAILED reporter"]}
@@ -91,16 +156,16 @@ def run(task: str = "", task_id: int | None = None, workspace: str = "default") 
 
 register(DepartmentSpec(
     key="books.market", sector="books",
-    title_ar="Books — Market Supervisor", title_en="Books — Market Supervisor",
-    description_ar="Tracks Trends + Etsy, then emits an opportunity report in English.",
-    description_en='Google Trends + public Etsy scan → English opportunity report',
+    title_ar="Books — Market Research", title_en="Books — Market Research",
+    description_ar="Collects KDP/Etsy/Trends data with evidence, scores opportunities, emits a report.",
+    description_en='Collects KDP/Etsy/Trends data with evidence, scores opportunities, emits a report.',
     capabilities=["google_trends", "etsy_competition", "market_report"],
     allowed_tools=["web_research"],
     approval_policy="none",
     run=run, budget_limit_usd=10.0,
     agents=[
         AgentSpec("researcher", "scans Google Trends and public Etsy listings", "deterministic", ["web_research"]),
-        AgentSpec("reporter", "writes the Arabic opportunity report", "reasoning", ["content_generation"]),
+        AgentSpec("reporter", "writes the research report with evidence", "reasoning", ["content_generation"]),
         AgentSpec("supervisor", "routes department worker order", "deterministic", []),
     ],
 ))

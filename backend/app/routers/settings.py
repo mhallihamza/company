@@ -31,6 +31,8 @@ def _redact(v: str) -> str:
 @router.get("/settings")
 def settings():
     ext = etsy_config_status()
+    from agents.llm_router import router_env_status
+    router_status = router_env_status()
     return {
         "llm_mode": mode_label(),
         "db_backend": os.getenv("DB_BACKEND", "auto"),
@@ -40,6 +42,18 @@ def settings():
             "MISTRAL_API_KEY": _redact(os.getenv("MISTRAL_API_KEY", "")),
             "DATABASE_URL": "set" if os.getenv("DATABASE_URL") else "not set",
             "FOUNDER_TOKEN": _redact(os.getenv("FOUNDER_TOKEN", "")),
+            "LLM_ROUTER_API_KEY": "set" if router_status["LLM_ROUTER_API_KEY"] else "not set",
+            "LLM_ROUTER_BASE_URL": "set" if router_status["LLM_ROUTER_BASE_URL"] else "not set",
+            "LLM_ROUTER_MODEL": "set" if router_status["LLM_ROUTER_MODEL"] else "not set",
+        },
+        "llm_router": {
+            "configured": all(router_status.values()),
+            "provider": os.getenv("LLM_PROVIDER", "mistral").lower(),
+            "model": os.getenv("LLM_ROUTER_MODEL") or None,
+        },
+        "image_provider": {
+            "provider": (os.getenv("IMAGE_PROVIDER") or "pil").lower(),
+            "live": bool((os.getenv("IMAGE_PROVIDER") or "").lower() == "openai" and os.getenv("OPENAI_API_KEY")),
         },
         "etsy": {
             "status": "configured" if ext["etsy_configured"] else "not_configured",
@@ -47,6 +61,21 @@ def settings():
         },
         "scheduler_enabled": os.getenv("ENABLE_SCHEDULER", "").lower() in ("1", "true", "yes"),
     }
+
+
+class ProviderHealthIn(BaseModel):
+    probe: bool = True
+
+
+@router.post("/settings/provider_health")
+def provider_health(body: ProviderHealthIn):
+    """Explicit provider health probe — the founder presses 'Test LLM Router' in the UI."""
+    from agents.llm_router import health_check
+    if not body.probe:
+        return {"ok": False, "error": "Nothing to probe.", "configured": False}
+    h = health_check()
+    h["provider"] = os.getenv("LLM_PROVIDER", "mistral").lower()
+    return h
 
 
 @router.post("/settings/autonomy")

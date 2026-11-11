@@ -160,6 +160,10 @@ def _evidence(state: HQState) -> HQState:
                 "progress": state.get("progress", []) + ["FAILED evidence"]}
 
 
+def _score_explanation(component: str, score: float, reason: str) -> dict:
+    return {"component": component, "score": round(score, 1), "reason": reason}
+
+
 def _score(state: HQState) -> HQState:
     try:
         art = state.get("artifacts") or {}
@@ -170,12 +174,12 @@ def _score(state: HQState) -> HQState:
 
         scored = []
         for c in candidates:
-            t = trends.get(c.get("keyword", ""), {})
+            t = trends.get(c.get("keyword", ""), {}) if isinstance(trends, dict) else {}
             avg_int = float(t.get("avg_interest", 0) or 0)
             direction = 8.0 if str(t.get("trend", "steady")).lower() in ("rising", "up") else 6.0
             demand_score = _clamp((avg_int + direction) / 2, 0, 10)
 
-            comp = competition.get(c.get("keyword", ""), {})
+            comp = competition.get(c.get("keyword", ""), {}) if isinstance(competition, dict) else {}
             tag = (comp.get("competition") or "").lower()
             competition_score = COMPETITION_SCORE.get(tag, 5.0)
 
@@ -207,6 +211,14 @@ def _score(state: HQState) -> HQState:
             feasibility_score = 8.0   # the pipeline handles story/coloring/activity formats
             timing_score = 7.0        # seasonal timing matters but can't be certain w/out calendar run
 
+            audience_clarity = 7.0     # adult-buyer direct + clear age segment (3-5)
+            differentiation    = _clamp(10.0 - competition_score * 0.6, 0, 10)  # weaker competition = higher differentiation
+            pricing_potential  = _clamp(margin_score * 0.9 + 0.5, 0, 10)
+            seasonal_relevance = timing_score
+            kdp_suitability    = 8.0   # print interior fits the toolkit well
+            etsy_suitability  = 8.0   # printable digital fits conditionally on completeness
+            production_difficulty = 4.0  # feasible with current pipeline (12 pages, line art)
+
             weighted = (demand_score * 0.30
                         + competition_score * 0.20
                         + margin_score * 0.25
@@ -214,14 +226,52 @@ def _score(state: HQState) -> HQState:
                         + timing_score * 0.10)
             score = round(_clamp(weighted, 0, 10), 1)
 
+            # Evidence confidence — from verified sources count (no manufactured confidence)
+            verified_count = 0
+            if isinstance(exporter := evidence, dict):
+                envelopes = exporter.get("envelopes", {}) if isinstance(exporter, dict) else {}
+                if isinstance(envelopes, dict):
+                    for env in envelopes.values():
+                        if isinstance(env, dict) and env.get("verified"):
+                            verified_count += 1
+            confidence = "high" if verified_count >= 2 else ("medium" if verified_count == 1 else "low")
+
             comp = {**c, "evidence_trends": t, "evidence_competition": comp,
                     "prices_samples": price_sample,
                     "market": state.get("market") or "us-en",
                     "fee_model_ref": fee_ref,
                     "fee_source": fee_source,
+                    "kdp_score": round(kdp_suitability, 1),
+                    "etsy_score": round(etsy_suitability, 1),
+                    "differentiation": round(differentiation, 1),
+                    "evidence_confidence": confidence,
+                    "production_difficulty": production_difficulty,
                     "sub_scores": {"demand": demand_score, "competition": competition_score,
                                    "margin": margin_score, "feasibility": feasibility_score,
-                                   "timing": timing_score},
+                                   "timing": timing_score, "differentiation": differentiation,
+                                   "audience_clarity": audience_clarity,
+                                   "pricing_potential": pricing_potential,
+                                   "seasonal_relevance": seasonal_relevance},
+                    "score_breakdown": [
+                        _score_explanation("demand", demand_score,
+                            "Google Trends interest " + ("+ rising" if direction == 8.0 else "steady/low")),
+                        _score_explanation("competition", competition_score,
+                            "Etsy competition bucket: " + (tag or "unknown (no live data)")),
+                        _score_explanation("margin", margin_score,
+                            ("Verified fee math" if fee_source == "verified" else "Fees unverified — margin not invented")),
+                        _score_explanation("feasibility", feasibility_score,
+                            "Toolkit handles coloring/drawing/activity workbooks"),
+                        _score_explanation("timing", timing_score,
+                            "Seasonal calendar awareness (not weighted)"),
+                        _score_explanation("differentiation", differentiation,
+                            "Reverse score of competition — narrow niches stand out"),
+                        _score_explanation("audience_clarity", audience_clarity,
+                            "Clear age segment (3-5) + parent buyer"),
+                        _score_explanation("pricing_potential", pricing_potential,
+                            "Linked to margin estimate — higher margin = higher pricing potential"),
+                        _score_explanation("seasonal_relevance", seasonal_relevance,
+                            "Timing at opportunity level — no calendar run yet"),
+                    ],
                     "score": score}
             scored.append(comp)
 

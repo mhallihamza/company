@@ -255,4 +255,182 @@ def counts() -> dict[str, int]:
         "products_published": _scalar("SELECT count(*) FROM products WHERE status='published'"),
         "reports": _scalar("SELECT count(*) FROM reports"),
         "approvals_pending": _scalar("SELECT count(*) FROM approvals WHERE status='pending'"),
+        "research_runs": _scalar("SELECT count(*) FROM research_runs"),
     }
+
+
+# ---------------- research runs / competitor observations ----------------
+
+def create_research_run(query: str, task_id: int | None = None, workspace: str = "default") -> int:
+    s = _store()
+    s._execute("INSERT INTO research_runs (workspace_id, query, task_id) VALUES (?,?,?)",
+               (workspace, query, task_id))
+    with s._cur() as cur:
+        if s.kind == "pg":
+            cur.execute("SELECT LASTVAL()")
+        else:
+            cur.execute("SELECT last_insert_rowid()")
+        row = cur.fetchone()
+        return int(row[0] if not isinstance(row, dict) else row["lastval"])
+
+
+def add_research_source(run_id: int, source: str, query: str, collected_at: str | None,
+                        verified: bool, blind_spot: bool, workspace: str = "default") -> None:
+    _store()._execute(
+        "INSERT INTO research_sources (run_id, workspace_id, source, query, collected_at, verified, blind_spot) "
+        "VALUES (?,?,?,?,?,?,?)",
+        (run_id, workspace, source, query, collected_at, bool(verified), bool(blind_spot)))
+
+
+def add_competitor_observation(run_id: int, rec: dict, workspace: str = "default") -> None:
+    import json as _json
+    raw = rec.get("raw") if isinstance(rec.get("raw"), dict) else {}
+    _store()._execute(
+        "INSERT INTO competitor_observations "
+        "(run_id, workspace_id, source, market, data_type, title, url, price, rating, reviews, captured_at, verified, raw) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        (run_id, workspace, str(rec.get("source") or ""), str(rec.get("market") or ""),
+         str(rec.get("data_type") or ""), str(rec.get("title") or ""), str(rec.get("url") or ""),
+         rec.get("price"), rec.get("rating"), rec.get("reviews"),
+         str(rec.get("captured_at") or ""), bool(rec.get("verified")),
+         _json.dumps(raw, ensure_ascii=False)))
+
+
+def list_competitor_observations(run_id: int, limit: int = 100, workspace: str = "default") -> list[dict]:
+    limit = max(1, min(int(limit), 500))
+    ph = "?" if _store().kind == "sqlite" else "%s"
+    return q(f"SELECT * FROM competitor_observations WHERE run_id={ph} AND workspace_id='{workspace}' "
+             "ORDER BY observation_id DESC LIMIT %d" % limit, (run_id,))
+
+
+# ---------------- product briefs / assets / QA reports ----------------
+
+def upsert_product_brief(product_key: str, content: dict, workspace: str = "default") -> int:
+    import json as _json
+    s = _store()
+    title = str(content.get("title") or product_key)
+    try:
+        s._execute(
+            "INSERT INTO product_briefs (workspace_id, product_key, title, target_age, format, page_count, marketplace, content, status) "
+            "VALUES (?,?,?,?,?,?,?,?,?) "
+            "ON CONFLICT (product_key) DO UPDATE SET title=EXCLUDED.title, target_age=EXCLUDED.target_age, "
+            "format=EXCLUDED.format, page_count=EXCLUDED.page_count, marketplace=EXCLUDED.marketplace, "
+            "content=EXCLUDED.content, updated_at=CURRENT_TIMESTAMP",
+            (workspace, product_key, title, str(content.get("target_age") or "3-5"),
+             str(content.get("format") or "picture_book"),
+             int(content.get("page_count") or 12),
+             str(content.get("marketplace") or "kdp"),
+             _json.dumps(content, ensure_ascii=False),
+             str(content.get("status") or "pending_approval")))
+    except Exception as e:  # noqa: BLE001
+        # sqlite doesn't support ON CONFLICT for this shape — do a manual upsert
+        rows = q("SELECT brief_id FROM product_briefs WHERE product_key=?", (product_key,))
+        if rows:
+            s._execute("UPDATE product_briefs SET title=?, target_age=?, format=?, page_count=?, marketplace=?, content=?, status=?, updated_at=CURRENT_TIMESTAMP WHERE product_key=?",
+                       (title, str(content.get("target_age") or "3-5"),
+                        str(content.get("format") or "picture_book"),
+                        int(content.get("page_count") or 12),
+                        str(content.get("marketplace") or "kdp"),
+                        _json.dumps(content, ensure_ascii=False),
+                        str(content.get("status") or "pending_approval"), product_key))
+        else:
+            s._execute("INSERT INTO product_briefs (workspace_id, product_key, title, target_age, format, page_count, marketplace, content, status) VALUES (?,?,?,?,?,?,?,?,?)",
+                       (workspace, product_key, title, str(content.get("target_age") or "3-5"),
+                        str(content.get("format") or "picture_book"),
+                        int(content.get("page_count") or 12),
+                        str(content.get("marketplace") or "kdp"),
+                        _json.dumps(content, ensure_ascii=False),
+                        str(content.get("status") or "pending_approval")))
+    with s._cur() as cur:
+        if s.kind == "pg":
+            cur.execute("SELECT brief_id FROM product_briefs WHERE product_key=%s", (product_key,))
+        else:
+            cur.execute("SELECT brief_id FROM product_briefs WHERE product_key=?", (product_key,))
+        row = cur.fetchone()
+        return int(row["brief_id"] if isinstance(row, dict) else row[0])
+
+
+def get_product_brief(product_key: str) -> dict | None:
+    rows = q("SELECT * FROM product_briefs WHERE product_key=?", (product_key,))
+    if not rows:
+        return None
+    row = rows[0]
+    row["content"] = json.loads(row["content"]) if isinstance(row.get("content"), str) else row.get("content")
+    return row
+
+
+def add_generated_asset(product_key: str, page_number: int | None, asset_type: str,
+                        path: str, provider: str | None = None, style: str | None = None,
+                        workspace: str = "default") -> int:
+    s = _store()
+    s._execute(
+        "INSERT INTO generated_assets (workspace_id, product_key, page_number, asset_type, path, provider, style) "
+        "VALUES (?,?,?,?,?,?,?)",
+        (workspace, product_key, page_number, asset_type, path, provider, style))
+    with s._cur() as cur:
+        if s.kind == "pg":
+            cur.execute("SELECT LASTVAL()")
+            row = cur.fetchone()
+            return int(row["lastval"] if isinstance(row, dict) else row[0])
+        cur.execute("SELECT last_insert_rowid()")
+        row = cur.fetchone()
+        return int(row[0])
+
+
+def list_generated_assets(product_key: str, workspace: str = "default") -> list[dict]:
+    return q("SELECT * FROM generated_assets WHERE product_key=? AND workspace_id=? ORDER BY page_number",
+             (product_key, workspace))
+
+
+def add_qa_report(product_key: str, verdict: str, checks: dict, workspace: str = "default") -> int:
+    import json as _json
+    s = _store()
+    s._execute("INSERT INTO qa_reports (workspace_id, product_key, verdict, checks) VALUES (?,?,?,?)",
+               (workspace, product_key, verdict, _json.dumps(checks, ensure_ascii=False)))
+    with s._cur() as cur:
+        if s.kind == "pg":
+            cur.execute("SELECT LASTVAL()")
+            row = cur.fetchone()
+            return int(row["lastval"] if isinstance(row, dict) else row[0])
+        cur.execute("SELECT last_insert_rowid()")
+        row = cur.fetchone()
+        return int(row[0])
+
+
+def list_qa_reports(product_key: str, workspace: str = "default") -> list[dict]:
+    rows = q("SELECT * FROM qa_reports WHERE product_key=? AND workspace_id=? ORDER BY qa_id DESC",
+             (product_key, workspace))
+    for r in rows:
+        try:
+            r["checks"] = json.loads(r["checks"]) if isinstance(r["checks"], str) else r["checks"]
+        except Exception:  # noqa: BLE001
+            pass
+    return rows
+
+
+def upsert_listing_draft(product_key: str, marketplace: str, title: str,
+                         description: str, tags: str, price: float | None,
+                         workspace: str = "default", status: str = "pending_approval") -> int:
+    import json as _json
+    s = _store()
+    s._execute(
+        "INSERT INTO marketplace_listing_drafts (workspace_id, product_key, marketplace, title, description, tags, price, status) "
+        "VALUES (?,?,?,?,?,?,?,?) "
+        "ON CONFLICT DO NOTHING",
+        (workspace, product_key, marketplace, title, description, tags, price, status))
+    rows = q("SELECT draft_id FROM marketplace_listing_drafts WHERE product_key=? AND marketplace=?",
+             (product_key, marketplace))
+    if rows:
+        return int(rows[0]["draft_id"])
+    # sqlite has no ON CONFLICT with this shape; just re-insert
+    s._execute("INSERT INTO marketplace_listing_drafts (workspace_id, product_key, marketplace, title, description, tags, price, status) "
+               "VALUES (?,?,?,?,?,?,?,?)",
+               (workspace, product_key, marketplace, title, description, tags, price, status))
+    rows = q("SELECT draft_id FROM marketplace_listing_drafts WHERE product_key=? AND marketplace=? ORDER BY draft_id DESC LIMIT 1",
+             (product_key, marketplace))
+    return int(rows[0]["draft_id"]) if rows else -1
+
+
+def list_listing_drafts(product_key: str, workspace: str = "default") -> list[dict]:
+    return q("SELECT * FROM marketplace_listing_drafts WHERE product_key=? AND workspace_id=? ORDER BY created_at",
+             (product_key, workspace))
